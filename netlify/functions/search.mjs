@@ -19,22 +19,62 @@ export default async (request) => {
       );
     }
 
+    if (!process.env.ASSISTANT_ID) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Missing ASSISTANT_ID" }),
+        { status: 500, headers: { "content-type": "application/json" } }
+      );
+    }
+
     const client = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     });
 
-    const response = await client.responses.create({
-      model: "gpt-4.1-mini",
-      input: message
+    // 1️⃣ vytvoříme thread (konverzaci)
+    const thread = await client.beta.threads.create();
+
+    // 2️⃣ pošleme zprávu uživatele
+    await client.beta.threads.messages.create(thread.id, {
+      role: "user",
+      content: message
     });
 
-    // 🔑 TOTO JE KLÍČ – oficiální helper
-    const answer = response.output_text;
+    // 3️⃣ spustíme asistenta
+    const run = await client.beta.threads.runs.create(thread.id, {
+      assistant_id: process.env.ASSISTANT_ID
+    });
+
+    // 4️⃣ počkáme na dokončení
+    let status = run.status;
+    let runResult = run;
+
+    while (status !== "completed" && status !== "failed") {
+      await new Promise((r) => setTimeout(r, 500));
+      runResult = await client.beta.threads.runs.retrieve(
+        thread.id,
+        run.id
+      );
+      status = runResult.status;
+    }
+
+    if (status === "failed") {
+      throw new Error("Assistant run failed");
+    }
+
+    // 5️⃣ vytáhneme poslední odpověď asistenta
+    const messages = await client.beta.threads.messages.list(thread.id);
+    const lastMessage = messages.data.find(
+      (m) => m.role === "assistant"
+    );
+
+    const answer =
+      lastMessage?.content?.[0]?.text?.value ||
+      "Asistent nevrátil odpověď.";
 
     return new Response(
       JSON.stringify({
         ok: true,
-        answer: answer || "Asistent nevrátil odpověď."
+        answer
       }),
       { status: 200, headers: { "content-type": "application/json" } }
     );

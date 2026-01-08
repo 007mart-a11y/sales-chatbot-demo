@@ -1,5 +1,3 @@
-import OpenAI from "openai";
-
 export default async (request) => {
   try {
     if (request.method !== "POST") {
@@ -19,63 +17,101 @@ export default async (request) => {
       );
     }
 
-    if (!process.env.ASSISTANT_ID) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    const assistantId = process.env.ASSISTANT_ID;
+
+    if (!apiKey || !assistantId) {
       return new Response(
-        JSON.stringify({ ok: false, error: "Missing ASSISTANT_ID" }),
+        JSON.stringify({ ok: false, error: "Missing env variables" }),
         { status: 500, headers: { "content-type": "application/json" } }
       );
     }
 
-    const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+    /* 1️⃣ vytvoříme thread */
+    const threadRes = await fetch("https://api.openai.com/v1/threads", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+      }
     });
 
-    // 1️⃣ vytvoříme thread (konverzaci)
-    const thread = await client.beta.threads.create();
+    const thread = await threadRes.json();
 
-    // 2️⃣ pošleme zprávu uživatele
-    await client.beta.threads.messages.create(thread.id, {
-      role: "user",
-      content: message
+    /* 2️⃣ pošleme zprávu */
+    await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+      },
+      body: JSON.stringify({
+        role: "user",
+        content: message
+      })
     });
 
-    // 3️⃣ spustíme asistenta
-    const run = await client.beta.threads.runs.create(thread.id, {
-      assistant_id: process.env.ASSISTANT_ID
-    });
+    /* 3️⃣ spustíme asistenta */
+    const runRes = await fetch(
+      `https://api.openai.com/v1/threads/${thread.id}/runs`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "OpenAI-Beta": "assistants=v2"
+        },
+        body: JSON.stringify({
+          assistant_id: assistantId
+        })
+      }
+    );
 
-    // 4️⃣ počkáme na dokončení
-    let status = run.status;
-    let runResult = run;
+    let run = await runRes.json();
 
-    while (status !== "completed" && status !== "failed") {
-      await new Promise((r) => setTimeout(r, 500));
-      runResult = await client.beta.threads.runs.retrieve(
-        thread.id,
-        run.id
+    /* 4️⃣ počkáme na dokončení */
+    while (run.status !== "completed" && run.status !== "failed") {
+      await new Promise(r => setTimeout(r, 500));
+
+      const check = await fetch(
+        `https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "OpenAI-Beta": "assistants=v2"
+          }
+        }
       );
-      status = runResult.status;
+
+      run = await check.json();
     }
 
-    if (status === "failed") {
+    if (run.status === "failed") {
       throw new Error("Assistant run failed");
     }
 
-    // 5️⃣ vytáhneme poslední odpověď asistenta
-    const messages = await client.beta.threads.messages.list(thread.id);
-    const lastMessage = messages.data.find(
-      (m) => m.role === "assistant"
+    /* 5️⃣ načteme odpověď */
+    const messagesRes = await fetch(
+      `https://api.openai.com/v1/threads/${thread.id}/messages`,
+      {
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "OpenAI-Beta": "assistants=v2"
+        }
+      }
     );
 
+    const messages = await messagesRes.json();
+    const assistantMsg = messages.data.find(m => m.role === "assistant");
+
     const answer =
-      lastMessage?.content?.[0]?.text?.value ||
+      assistantMsg?.content?.[0]?.text?.value ||
       "Asistent nevrátil odpověď.";
 
     return new Response(
-      JSON.stringify({
-        ok: true,
-        answer
-      }),
+      JSON.stringify({ ok: true, answer }),
       { status: 200, headers: { "content-type": "application/json" } }
     );
 
@@ -84,7 +120,7 @@ export default async (request) => {
       JSON.stringify({
         ok: false,
         error: "Server error",
-        details: String(err?.message || err)
+        details: String(err.message || err)
       }),
       { status: 500, headers: { "content-type": "application/json" } }
     );

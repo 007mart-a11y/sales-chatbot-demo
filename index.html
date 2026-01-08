@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sales Demo – Chatbot asistent</title>
+
+<style>
+:root{
+  --bg:#f4f6fb;
+  --card:#ffffff;
+  --text:#0f172a;
+  --muted:#475569;
+  --border:#e5e7eb;
+  --brand:#0f766e;
+  --brand-2:#14b8a6;
+  --me:#dcfce7;
+  --shadow:0 18px 50px rgba(2,6,23,.16);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:transparent;
+}
+
+[hidden]{display:none!important}
+
+/* === CHAT WIDGET === */
+.chat-widget{
+  position:fixed;
+  right:24px;
+  bottom:24px;
+  width:380px;
+  height:600px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  box-shadow:var(--shadow);
+  display:none;
+  flex-direction:column;
+  overflow:hidden;
+  z-index:9999;
+}
+
+/* HEADER */
+.chat-header{
+  padding:12px 14px;
+  background:linear-gradient(135deg,var(--brand),#0a5d57);
+  color:#fff;
+  cursor:pointer;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.header-left{display:flex;gap:10px;align-items:center}
+.brandmark{
+  width:34px;height:34px;border-radius:10px;
+  background:rgba(255,255,255,.15);
+  display:flex;align-items:center;justify-content:center;
+}
+.header-title{font-weight:700;font-size:15px}
+.header-sub{font-size:11px;opacity:.85}
+.header-right{display:flex;gap:10px;align-items:center}
+.chip{
+  font-size:11px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.15);
+}
+
+/* CHAT */
+.chat{
+  flex:1;
+  padding:14px;
+  background:var(--bg);
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+/* MESSAGES */
+.msg{
+  max-width:86%;
+  padding:10px 12px;
+  border-radius:14px;
+  font-size:14px;
+  line-height:1.45;
+  white-space:pre-wrap;
+}
+.me{
+  align-self:flex-end;
+  background:var(--me);
+  border-bottom-right-radius:6px;
+}
+.bot{
+  align-self:flex-start;
+  background:#fff;
+  border:1px solid var(--border);
+  border-bottom-left-radius:6px;
+}
+
+/* INPUT */
+.row{
+  display:flex;
+  gap:8px;
+  padding:10px;
+  border-top:1px solid var(--border);
+}
+input{
+  flex:1;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid var(--border);
+}
+button.send{
+  width:44px;
+  border:0;
+  border-radius:12px;
+  background:var(--brand);
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+}
+
+/* FLOATING BUTTON */
+.fab{
+  position:fixed;
+  right:24px;
+  bottom:24px;
+  width:58px;
+  height:58px;
+  border-radius:999px;
+  border:0;
+  background:linear-gradient(135deg,var(--brand),#0a5d57);
+  color:#fff;
+  box-shadow:var(--shadow);
+  cursor:pointer;
+  z-index:10000;
+}
+
+/* LOADING */
+.loading-bar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  margin:0 14px 10px;
+  border-radius:12px;
+  background:rgba(0,0,0,.05);
+  font-size:13px;
+}
+.loading-bar .dot{
+  width:10px;height:10px;border-radius:50%;
+  background:currentColor;
+  animation:pulse 1s infinite;
+}
+@keyframes pulse{
+  0%,100%{opacity:.25}
+  50%{opacity:1}
+}
+</style>
+</head>
+
+<body>
+
+<!-- CHAT -->
+<div id="widget" class="chat-widget">
+  <div class="chat-header" onclick="closeChat()">
+    <div class="header-left">
+      <div class="brandmark">💬</div>
+      <div>
+        <div class="header-title">Sales Demo – Chatbot</div>
+        <div class="header-sub">testovací ukázka</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="chip">Demo</div>
+    </div>
+  </div>
+
+  <div id="chat" class="chat"></div>
+
+  <div id="loadingBar" class="loading-bar" hidden>
+    <span class="dot"></span>
+    <span>Generuje se odpověď…</span>
+  </div>
+
+  <div class="row">
+    <input id="q" placeholder="Napište dotaz…" />
+    <button id="send" class="send">›</button>
+  </div>
+</div>
+
+<button class="fab" onclick="openChat()">💬</button>
+
+<script>
+const chatEl = document.getElementById("chat");
+const input = document.getElementById("q");
+const send = document.getElementById("send");
+const widget = document.getElementById("widget");
+const loadingBar = document.getElementById("loadingBar");
+
+const AI_ENDPOINT = "/.netlify/functions/search";
+
+function openChat(){
+  widget.style.display="flex";
+  setTimeout(()=>input.focus(),100);
+}
+function closeChat(){
+  widget.style.display="none";
+}
+
+function addMessage(who,text,cls){
+  const d=document.createElement("div");
+  d.className="msg "+cls;
+  d.innerHTML="<strong>"+who+":</strong> "+text;
+  chatEl.appendChild(d);
+  chatEl.scrollTop=chatEl.scrollHeight;
+}
+
+async function ask(){
+  const q=input.value.trim();
+  if(!q) return;
+  addMessage("Vy",q,"me");
+  input.value="";
+  send.disabled=true;
+  loadingBar.hidden=false;
+
+  try{
+    const r=await fetch(AI_ENDPOINT,{
+      method:"POST",
+      headers:{ "content-type":"application/json" },
+      body:JSON.stringify({ message:q })
+    });
+    const j=await r.json();
+    addMessage("Asistent",j.answer||"Bez odpovědi","bot");
+  }catch(e){
+    addMessage("Asistent","Chyba spojení.","bot");
+  }finally{
+    loadingBar.hidden=true;
+    send.disabled=false;
+  }
+}
+
+send.onclick=ask;
+input.addEventListener("keydown",e=>e.key==="Enter"&&ask());
+
+addMessage(
+  "Asistent",
+  "Upozornění: Toto je testovací demo. Odpovědi jsou generované umělou inteligencí a mohou obsahovat nepřesnosti.\n\nNapište dotaz nebo zkuste: „Co umíš?“",
+  "bot"
+);
+</script>
+
+</body>
+</html>

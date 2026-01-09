@@ -3,225 +3,185 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sales chatbot demo</title>
+  <title>Sales chatbot – test</title>
   <style>
-    :root { --bg:#f6f7f8; --card:#fff; --border:#e7e7e7; --txt:#111; --muted:#666; }
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:0; padding:24px; background:var(--bg); color:var(--txt);}
-    .wrap{max-width:860px; margin:0 auto;}
-    .card{background:var(--card); border-radius:14px; padding:16px; box-shadow:0 2px 12px rgba(0,0,0,.06);}
-    h1{font-size:20px; margin:0 0 6px;}
-    .sub{color:var(--muted); font-size:13px; margin:0 0 12px;}
-    .chat{display:flex; flex-direction:column; gap:10px; min-height:420px; max-height:62vh; overflow:auto; padding:10px; border:1px solid var(--border); border-radius:12px; background:#fff;}
-    .msg{padding:10px 12px; border-radius:14px; max-width:92%; white-space:pre-wrap; line-height:1.35;}
-    .user{align-self:flex-end; background:#dff7e8;}
-    .bot{align-self:flex-start; background:#f1f3f5;}
-    .meta{font-size:12px; color:var(--muted); margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;}
-    .row{display:flex; gap:8px; margin-top:12px;}
-    input{flex:1; padding:12px; border-radius:12px; border:1px solid var(--border); font-size:16px; outline:none;}
-    input:focus{border-color:#cfcfcf;}
-    button{padding:12px 14px; border-radius:12px; border:0; cursor:pointer; font-weight:700;}
-    .btn{background:#0b5; color:#fff;}
-    .btn2{background:#eee;}
-    .btn3{background:#111; color:#fff;}
-    .hint{font-size:12px; color:var(--muted); margin-top:8px;}
-    .pill{background:#f3f3f3; padding:4px 8px; border-radius:999px;}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;padding:20px;background:#f6f7f8}
+    .wrap{max-width:900px;margin:0 auto}
+    .card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+    h1{margin:0 0 6px;font-size:20px}
+    .sub{font-size:13px;color:#666;margin-bottom:12px}
+    .chat{min-height:420px;max-height:65vh;overflow:auto;border:1px solid #e5e5e5;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:10px}
+    .msg{padding:10px 12px;border-radius:14px;white-space:pre-wrap;max-width:92%}
+    .user{align-self:flex-end;background:#dff7e8}
+    .bot{align-self:flex-start;background:#f1f3f5}
+    .row{display:flex;gap:8px;margin-top:12px}
+    input{flex:1;padding:12px;border-radius:12px;border:1px solid #ddd;font-size:16px}
+    button{padding:12px 14px;border-radius:12px;border:0;font-weight:700;cursor:pointer}
+    .btn{background:#0b5;color:#fff}
+    .btn2{background:#eee}
+    .meta{margin-top:10px;font-size:12px;color:#555;display:flex;gap:10px;flex-wrap:wrap}
+    .pill{background:#f0f0f0;padding:4px 8px;border-radius:999px}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>Sales chatbot demo</h1>
-      <p class="sub">
-        Chat drží kontext přes <b>thread_id</b>. Tlačítko „Nový chat“ vymaže i paměť.
-        (Lead do Sheets se odešle automaticky, když asistent vrátí JSON s kontaktem.)
-      </p>
+<div class="wrap">
+  <div class="card">
+    <h1>Sales chatbot – debug</h1>
+    <div class="sub">
+      ✔ drží paměť (thread_id) · ✔ ukáže co jde do Sheets · ✔ ukáže odpověď ze Sheets
+    </div>
 
-      <div id="chat" class="chat"></div>
+    <div id="chat" class="chat"></div>
 
-      <div class="row">
-        <input id="input" placeholder="Napiš zprávu..." autocomplete="off" />
-        <button id="send" class="btn">Odeslat</button>
-        <button id="reset" class="btn2" title="Vymazat konverzaci a začít znovu">Nový chat</button>
-      </div>
+    <div class="row">
+      <input id="input" placeholder="Napiš zprávu…" autocomplete="off">
+      <button id="send" class="btn">Odeslat</button>
+      <button id="reset" class="btn2">Nový chat</button>
+    </div>
 
-      <div class="hint">
-        Tip: napiš <span class="pill">reset</span> pro reset konverzace.
-      </div>
-
-      <div class="meta">
-        <span class="pill" id="threadPill">thread_id: (zatím žádný)</span>
-        <span class="pill" id="statusPill">stav: připraveno</span>
-      </div>
+    <div class="meta">
+      <span class="pill" id="threadInfo">thread_id: –</span>
+      <span class="pill" id="status">stav: připraveno</span>
     </div>
   </div>
+</div>
 
 <script>
-  // ========= THREAD "PAMĚŤ" =========
-  const THREAD_KEY = "sales_chatbot_thread_id";
-  const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
-  const setThreadId = (id) => { if (id) localStorage.setItem(THREAD_KEY, id); };
-  const resetThread = () => localStorage.removeItem(THREAD_KEY);
+/* ================= PAMĚŤ THREADU ================= */
+const THREAD_KEY = "sales_chatbot_thread_id";
+const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
+const setThreadId = id => id && localStorage.setItem(THREAD_KEY, id);
+const resetThread = () => localStorage.removeItem(THREAD_KEY);
 
-  // ========= UI =========
-  const chatEl = document.getElementById("chat");
-  const inputEl = document.getElementById("input");
-  const sendBtn = document.getElementById("send");
-  const resetBtn = document.getElementById("reset");
-  const threadPill = document.getElementById("threadPill");
-  const statusPill = document.getElementById("statusPill");
+/* ================= UI ================= */
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("send");
+const resetBtn = document.getElementById("reset");
+const threadInfo = document.getElementById("threadInfo");
+const statusEl = document.getElementById("status");
 
-  function setStatus(txt) { statusPill.textContent = "stav: " + txt; }
-  function updateThreadPill() {
-    const tid = getThreadId();
-    threadPill.textContent = "thread_id: " + (tid ? tid : "(zatím žádný)");
-  }
+function setStatus(t){ statusEl.textContent = "stav: " + t; }
+function updateThread(){ threadInfo.textContent = "thread_id: " + (getThreadId() || "–"); }
 
-  function addMsg(role, text) {
-    const div = document.createElement("div");
-    div.className = "msg " + (role === "user" ? "user" : "bot");
-    div.textContent = text;
-    chatEl.appendChild(div);
-    chatEl.scrollTop = chatEl.scrollHeight;
-  }
+function add(role, text){
+  const d = document.createElement("div");
+  d.className = "msg " + (role === "user" ? "user" : "bot");
+  d.textContent = text;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
 
-  function clearChat() {
-    chatEl.innerHTML = "";
-  }
-
-  // ========= Lead helper (Sheets) =========
-  async function submitLeadToSheets(lead) {
-    // lead = {name, phone, email, message}
-    try {
-      const res = await fetch("/.netlify/functions/lead", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(lead),
-      });
-      // i kdyby to spadlo, nechceme zablokovat chat
-      const txt = await res.text();
-      return { ok: res.ok, raw: txt };
-    } catch (e) {
-      return { ok: false, raw: String(e) };
-    }
-  }
-
-  // ========= Parse JSON kontaktu z odpovědi =========
-  function extractLeadJson(text) {
-    // Hledáme první JSON objekt v textu
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start === -1 || end === -1 || end <= start) return null;
-
-    const candidate = text.slice(start, end + 1);
-    try {
-      const obj = JSON.parse(candidate);
-
-      // Minimální validace klíčů
-      if (!obj || typeof obj !== "object") return null;
-      const name = (obj.name || "").toString().trim();
-      const phone = (obj.phone || "").toString().trim();
-      const email = (obj.email || "").toString().trim();
-      const message = (obj.message || "").toString().trim();
-
-      // Lead bereme, když má aspoň jméno + telefon (email může být prázdný)
-      if (!name || !phone) return null;
-
-      return { name, phone, email, message };
-    } catch {
-      return null;
-    }
-  }
-
-  // ========= VOLÁNÍ ASSISTANTA =========
-  async function askAssistant(userText) {
-    const payload = {
-      message: userText,
-      thread_id: getThreadId(), // ✅ TADY se drží paměť
-    };
-
-    const res = await fetch("/.netlify/functions/search", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
+/* ================= LEAD → SHEETS ================= */
+async function sendLead(lead){
+  try{
+    const r = await fetch("/.netlify/functions/lead",{
+      method:"POST",
+      headers:{ "content-type":"application/json" },
+      body:JSON.stringify(lead)
     });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (data.thread_id) setThreadId(data.thread_id); // ✅ uloží thread
-    updateThreadPill();
-
-    if (!data.ok) {
-      throw new Error(data.error || "Request failed");
-    }
-
-    return data.answer || "";
+    const txt = await r.text();
+    return { ok:r.ok, raw:txt };
+  }catch(e){
+    return { ok:false, raw:String(e) };
   }
+}
 
-  // ========= ODESLÁNÍ =========
-  async function handleSend() {
-    const text = inputEl.value.trim();
-    if (!text) return;
-
-    // textový reset bez tlačítka
-    if (text.toLowerCase() === "reset") {
-      resetThread();
-      clearChat();
-      updateThreadPill();
-      addMsg("bot", "Hotovo ✅ Začínáme nový chat. Pro jaký obor nebo typ podnikání řešení hledáte?");
-      inputEl.value = "";
-      return;
+/* ================= PARSE JSON Z ODPOVĚDI ================= */
+function extractLead(text){
+  const a = text.indexOf("{");
+  const b = text.lastIndexOf("}");
+  if(a===-1||b===-1||b<=a) return null;
+  try{
+    const o = JSON.parse(text.slice(a,b+1));
+    if(o.name && o.phone){
+      return {
+        name:String(o.name),
+        phone:String(o.phone),
+        email:String(o.email||""),
+        message:String(o.message||"")
+      };
     }
+  }catch{}
+  return null;
+}
 
-    addMsg("user", text);
-    inputEl.value = "";
-    setStatus("generuji odpověď…");
-    sendBtn.disabled = true;
+/* ================= CHAT → BACKEND ================= */
+async function askBot(text){
+  const r = await fetch("/.netlify/functions/search",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify({
+      message:text,
+      thread_id:getThreadId()
+    })
+  });
+  const d = await r.json();
+  if(d.thread_id) setThreadId(d.thread_id);
+  updateThread();
+  if(!d.ok) throw d.error;
+  return d.answer;
+}
 
-    try {
-      const answer = await askAssistant(text);
-      addMsg("bot", answer);
+/* ================= SEND ================= */
+async function send(){
+  const t = input.value.trim();
+  if(!t) return;
 
-      // Pokud odpověď obsahuje lead JSON, automaticky odešli do Sheets
-      const lead = extractLeadJson(answer);
-      if (lead) {
-        setStatus("odesílám kontakt do Sheets…");
-        const r = await submitLeadToSheets(lead);
-        if (r.ok) {
-          addMsg("bot", "✅ Díky! Kontakt jsem předal kolegovi, ozve se vám co nejdříve.");
-          setStatus("uloženo do Sheets");
-        } else {
-          // neblokuj – jen info
-          setStatus("nepodařilo se uložit do Sheets");
-        }
-      } else {
-        setStatus("připraveno");
-      }
-    } catch (e) {
-      addMsg("bot", "Omlouvám se, něco se pokazilo. Zkuste to prosím znovu.\n\n" + String(e.message || e));
-      setStatus("chyba");
-    } finally {
-      sendBtn.disabled = false;
-      inputEl.focus();
-    }
-  }
-
-  // ========= RESET BUTTON =========
-  resetBtn.addEventListener("click", () => {
+  if(t.toLowerCase()==="reset"){
     resetThread();
-    clearChat();
-    updateThreadPill();
-    addMsg("bot", "Začínáme nový chat ✅ Pro jaký obor nebo typ podnikání řešení hledáte?");
-    setStatus("připraveno");
-  });
+    chat.innerHTML="";
+    updateThread();
+    add("bot","Nový chat ✅ Pro jaký obor podnikání řešení hledáte?");
+    return;
+  }
 
-  sendBtn.addEventListener("click", handleSend);
-  inputEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") handleSend();
-  });
+  add("user",t);
+  input.value="";
+  setStatus("generuji…");
+  sendBtn.disabled=true;
 
-  // ========= INIT =========
-  updateThreadPill();
-  addMsg("bot", "Dobrý den! Pro jaký obor nebo typ podnikání řešení hledáte?");
+  try{
+    const ans = await askBot(t);
+    add("bot",ans);
+
+    const lead = extractLead(ans);
+    if(lead){
+      add("bot","📤 Odesílám do Sheets:\n"+JSON.stringify(lead,null,2));
+      setStatus("odesílám do Sheets…");
+      const r = await sendLead(lead);
+      if(r.ok){
+        add("bot","✅ Sheets odpověď:\n"+r.raw);
+        setStatus("uloženo do Sheets");
+      }else{
+        add("bot","❌ Chyba Sheets:\n"+r.raw);
+        setStatus("chyba Sheets");
+      }
+    }else{
+      setStatus("připraveno");
+    }
+  }catch(e){
+    add("bot","❌ Chyba:\n"+e);
+    setStatus("chyba");
+  }finally{
+    sendBtn.disabled=false;
+    input.focus();
+  }
+}
+
+/* ================= EVENTS ================= */
+sendBtn.onclick = send;
+input.addEventListener("keydown",e=>e.key==="Enter"&&send());
+resetBtn.onclick = ()=>{
+  resetThread();
+  chat.innerHTML="";
+  updateThread();
+  add("bot","Nový chat ✅ Pro jaký obor podnikání řešení hledáte?");
+};
+
+/* ================= INIT ================= */
+updateThread();
+add("bot","Dobrý den 👋 Pro jaký obor podnikání řešení hledáte?");
 </script>
 </body>
 </html>

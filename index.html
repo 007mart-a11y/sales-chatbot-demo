@@ -1,259 +1,227 @@
 <!doctype html>
 <html lang="cs">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sales Demo – Chatbot asistent</title>
-
-<style>
-:root{
-  --bg:#f4f6fb;
-  --card:#ffffff;
-  --text:#0f172a;
-  --muted:#475569;
-  --border:#e5e7eb;
-  --brand:#0f766e;
-  --brand-2:#14b8a6;
-  --me:#dcfce7;
-  --shadow:0 18px 50px rgba(2,6,23,.16);
-}
-
-*{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-  background:transparent;
-}
-
-[hidden]{display:none!important}
-
-/* === CHAT WIDGET === */
-.chat-widget{
-  position:fixed;
-  right:24px;
-  bottom:24px;
-  width:380px;
-  height:600px;
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:18px;
-  box-shadow:var(--shadow);
-  display:none;
-  flex-direction:column;
-  overflow:hidden;
-  z-index:9999;
-}
-
-/* HEADER */
-.chat-header{
-  padding:12px 14px;
-  background:linear-gradient(135deg,var(--brand),#0a5d57);
-  color:#fff;
-  cursor:pointer;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-.header-left{display:flex;gap:10px;align-items:center}
-.brandmark{
-  width:34px;height:34px;border-radius:10px;
-  background:rgba(255,255,255,.15);
-  display:flex;align-items:center;justify-content:center;
-}
-.header-title{font-weight:700;font-size:15px}
-.header-sub{font-size:11px;opacity:.85}
-.header-right{display:flex;gap:10px;align-items:center}
-.chip{
-  font-size:11px;
-  padding:4px 8px;
-  border-radius:999px;
-  background:rgba(255,255,255,.15);
-}
-
-/* CHAT */
-.chat{
-  flex:1;
-  padding:14px;
-  background:var(--bg);
-  overflow-y:auto;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-/* MESSAGES */
-.msg{
-  max-width:86%;
-  padding:10px 12px;
-  border-radius:14px;
-  font-size:14px;
-  line-height:1.45;
-  white-space:pre-wrap;
-}
-.me{
-  align-self:flex-end;
-  background:var(--me);
-  border-bottom-right-radius:6px;
-}
-.bot{
-  align-self:flex-start;
-  background:#fff;
-  border:1px solid var(--border);
-  border-bottom-left-radius:6px;
-}
-
-/* INPUT */
-.row{
-  display:flex;
-  gap:8px;
-  padding:10px;
-  border-top:1px solid var(--border);
-}
-input{
-  flex:1;
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid var(--border);
-}
-button.send{
-  width:44px;
-  border:0;
-  border-radius:12px;
-  background:var(--brand);
-  color:#fff;
-  font-weight:700;
-  cursor:pointer;
-}
-
-/* FLOATING BUTTON */
-.fab{
-  position:fixed;
-  right:24px;
-  bottom:24px;
-  width:58px;
-  height:58px;
-  border-radius:999px;
-  border:0;
-  background:linear-gradient(135deg,var(--brand),#0a5d57);
-  color:#fff;
-  box-shadow:var(--shadow);
-  cursor:pointer;
-  z-index:10000;
-}
-
-/* LOADING */
-.loading-bar{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:10px 12px;
-  margin:0 14px 10px;
-  border-radius:12px;
-  background:rgba(0,0,0,.05);
-  font-size:13px;
-}
-.loading-bar .dot{
-  width:10px;height:10px;border-radius:50%;
-  background:currentColor;
-  animation:pulse 1s infinite;
-}
-@keyframes pulse{
-  0%,100%{opacity:.25}
-  50%{opacity:1}
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sales chatbot demo</title>
+  <style>
+    :root { --bg:#f6f7f8; --card:#fff; --border:#e7e7e7; --txt:#111; --muted:#666; }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:0; padding:24px; background:var(--bg); color:var(--txt);}
+    .wrap{max-width:860px; margin:0 auto;}
+    .card{background:var(--card); border-radius:14px; padding:16px; box-shadow:0 2px 12px rgba(0,0,0,.06);}
+    h1{font-size:20px; margin:0 0 6px;}
+    .sub{color:var(--muted); font-size:13px; margin:0 0 12px;}
+    .chat{display:flex; flex-direction:column; gap:10px; min-height:420px; max-height:62vh; overflow:auto; padding:10px; border:1px solid var(--border); border-radius:12px; background:#fff;}
+    .msg{padding:10px 12px; border-radius:14px; max-width:92%; white-space:pre-wrap; line-height:1.35;}
+    .user{align-self:flex-end; background:#dff7e8;}
+    .bot{align-self:flex-start; background:#f1f3f5;}
+    .meta{font-size:12px; color:var(--muted); margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;}
+    .row{display:flex; gap:8px; margin-top:12px;}
+    input{flex:1; padding:12px; border-radius:12px; border:1px solid var(--border); font-size:16px; outline:none;}
+    input:focus{border-color:#cfcfcf;}
+    button{padding:12px 14px; border-radius:12px; border:0; cursor:pointer; font-weight:700;}
+    .btn{background:#0b5; color:#fff;}
+    .btn2{background:#eee;}
+    .btn3{background:#111; color:#fff;}
+    .hint{font-size:12px; color:var(--muted); margin-top:8px;}
+    .pill{background:#f3f3f3; padding:4px 8px; border-radius:999px;}
+  </style>
 </head>
-
 <body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Sales chatbot demo</h1>
+      <p class="sub">
+        Chat drží kontext přes <b>thread_id</b>. Tlačítko „Nový chat“ vymaže i paměť.
+        (Lead do Sheets se odešle automaticky, když asistent vrátí JSON s kontaktem.)
+      </p>
 
-<!-- CHAT -->
-<div id="widget" class="chat-widget">
-  <div class="chat-header" onclick="closeChat()">
-    <div class="header-left">
-      <div class="brandmark">💬</div>
-      <div>
-        <div class="header-title">Sales Demo – Chatbot</div>
-        <div class="header-sub">testovací ukázka</div>
+      <div id="chat" class="chat"></div>
+
+      <div class="row">
+        <input id="input" placeholder="Napiš zprávu..." autocomplete="off" />
+        <button id="send" class="btn">Odeslat</button>
+        <button id="reset" class="btn2" title="Vymazat konverzaci a začít znovu">Nový chat</button>
+      </div>
+
+      <div class="hint">
+        Tip: napiš <span class="pill">reset</span> pro reset konverzace.
+      </div>
+
+      <div class="meta">
+        <span class="pill" id="threadPill">thread_id: (zatím žádný)</span>
+        <span class="pill" id="statusPill">stav: připraveno</span>
       </div>
     </div>
-    <div class="header-right">
-      <div class="chip">Demo</div>
-    </div>
   </div>
-
-  <div id="chat" class="chat"></div>
-
-  <div id="loadingBar" class="loading-bar" hidden>
-    <span class="dot"></span>
-    <span>Generuje se odpověď…</span>
-  </div>
-
-  <div class="row">
-    <input id="q" placeholder="Napište dotaz…" />
-    <button id="send" class="send">›</button>
-  </div>
-</div>
-
-<button class="fab" onclick="openChat()">💬</button>
 
 <script>
-const chatEl = document.getElementById("chat");
-const input = document.getElementById("q");
-const send = document.getElementById("send");
-const widget = document.getElementById("widget");
-const loadingBar = document.getElementById("loadingBar");
+  // ========= THREAD "PAMĚŤ" =========
+  const THREAD_KEY = "sales_chatbot_thread_id";
+  const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
+  const setThreadId = (id) => { if (id) localStorage.setItem(THREAD_KEY, id); };
+  const resetThread = () => localStorage.removeItem(THREAD_KEY);
 
-const AI_ENDPOINT = "/.netlify/functions/search";
+  // ========= UI =========
+  const chatEl = document.getElementById("chat");
+  const inputEl = document.getElementById("input");
+  const sendBtn = document.getElementById("send");
+  const resetBtn = document.getElementById("reset");
+  const threadPill = document.getElementById("threadPill");
+  const statusPill = document.getElementById("statusPill");
 
-function openChat(){
-  widget.style.display="flex";
-  setTimeout(()=>input.focus(),100);
-}
-function closeChat(){
-  widget.style.display="none";
-}
-
-function addMessage(who,text,cls){
-  const d=document.createElement("div");
-  d.className="msg "+cls;
-  d.innerHTML="<strong>"+who+":</strong> "+text;
-  chatEl.appendChild(d);
-  chatEl.scrollTop=chatEl.scrollHeight;
-}
-
-async function ask(){
-  const q=input.value.trim();
-  if(!q) return;
-  addMessage("Vy",q,"me");
-  input.value="";
-  send.disabled=true;
-  loadingBar.hidden=false;
-
-  try{
-    const r=await fetch(AI_ENDPOINT,{
-      method:"POST",
-      headers:{ "content-type":"application/json" },
-      body:JSON.stringify({ message:q })
-    });
-    const j=await r.json();
-    addMessage("Asistent",j.answer||"Bez odpovědi","bot");
-  }catch(e){
-    addMessage("Asistent","Chyba spojení.","bot");
-  }finally{
-    loadingBar.hidden=true;
-    send.disabled=false;
+  function setStatus(txt) { statusPill.textContent = "stav: " + txt; }
+  function updateThreadPill() {
+    const tid = getThreadId();
+    threadPill.textContent = "thread_id: " + (tid ? tid : "(zatím žádný)");
   }
-}
 
-send.onclick=ask;
-input.addEventListener("keydown",e=>e.key==="Enter"&&ask());
+  function addMsg(role, text) {
+    const div = document.createElement("div");
+    div.className = "msg " + (role === "user" ? "user" : "bot");
+    div.textContent = text;
+    chatEl.appendChild(div);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
 
-addMessage(
-  "Asistent",
-  "Upozornění: Toto je testovací demo. Odpovědi jsou generované umělou inteligencí a mohou obsahovat nepřesnosti.\n\nNapište dotaz nebo zkuste: „Co umíš?“",
-  "bot"
-);
+  function clearChat() {
+    chatEl.innerHTML = "";
+  }
+
+  // ========= Lead helper (Sheets) =========
+  async function submitLeadToSheets(lead) {
+    // lead = {name, phone, email, message}
+    try {
+      const res = await fetch("/.netlify/functions/lead", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(lead),
+      });
+      // i kdyby to spadlo, nechceme zablokovat chat
+      const txt = await res.text();
+      return { ok: res.ok, raw: txt };
+    } catch (e) {
+      return { ok: false, raw: String(e) };
+    }
+  }
+
+  // ========= Parse JSON kontaktu z odpovědi =========
+  function extractLeadJson(text) {
+    // Hledáme první JSON objekt v textu
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1 || end <= start) return null;
+
+    const candidate = text.slice(start, end + 1);
+    try {
+      const obj = JSON.parse(candidate);
+
+      // Minimální validace klíčů
+      if (!obj || typeof obj !== "object") return null;
+      const name = (obj.name || "").toString().trim();
+      const phone = (obj.phone || "").toString().trim();
+      const email = (obj.email || "").toString().trim();
+      const message = (obj.message || "").toString().trim();
+
+      // Lead bereme, když má aspoň jméno + telefon (email může být prázdný)
+      if (!name || !phone) return null;
+
+      return { name, phone, email, message };
+    } catch {
+      return null;
+    }
+  }
+
+  // ========= VOLÁNÍ ASSISTANTA =========
+  async function askAssistant(userText) {
+    const payload = {
+      message: userText,
+      thread_id: getThreadId(), // ✅ TADY se drží paměť
+    };
+
+    const res = await fetch("/.netlify/functions/search", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (data.thread_id) setThreadId(data.thread_id); // ✅ uloží thread
+    updateThreadPill();
+
+    if (!data.ok) {
+      throw new Error(data.error || "Request failed");
+    }
+
+    return data.answer || "";
+  }
+
+  // ========= ODESLÁNÍ =========
+  async function handleSend() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+
+    // textový reset bez tlačítka
+    if (text.toLowerCase() === "reset") {
+      resetThread();
+      clearChat();
+      updateThreadPill();
+      addMsg("bot", "Hotovo ✅ Začínáme nový chat. Pro jaký obor nebo typ podnikání řešení hledáte?");
+      inputEl.value = "";
+      return;
+    }
+
+    addMsg("user", text);
+    inputEl.value = "";
+    setStatus("generuji odpověď…");
+    sendBtn.disabled = true;
+
+    try {
+      const answer = await askAssistant(text);
+      addMsg("bot", answer);
+
+      // Pokud odpověď obsahuje lead JSON, automaticky odešli do Sheets
+      const lead = extractLeadJson(answer);
+      if (lead) {
+        setStatus("odesílám kontakt do Sheets…");
+        const r = await submitLeadToSheets(lead);
+        if (r.ok) {
+          addMsg("bot", "✅ Díky! Kontakt jsem předal kolegovi, ozve se vám co nejdříve.");
+          setStatus("uloženo do Sheets");
+        } else {
+          // neblokuj – jen info
+          setStatus("nepodařilo se uložit do Sheets");
+        }
+      } else {
+        setStatus("připraveno");
+      }
+    } catch (e) {
+      addMsg("bot", "Omlouvám se, něco se pokazilo. Zkuste to prosím znovu.\n\n" + String(e.message || e));
+      setStatus("chyba");
+    } finally {
+      sendBtn.disabled = false;
+      inputEl.focus();
+    }
+  }
+
+  // ========= RESET BUTTON =========
+  resetBtn.addEventListener("click", () => {
+    resetThread();
+    clearChat();
+    updateThreadPill();
+    addMsg("bot", "Začínáme nový chat ✅ Pro jaký obor nebo typ podnikání řešení hledáte?");
+    setStatus("připraveno");
+  });
+
+  sendBtn.addEventListener("click", handleSend);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleSend();
+  });
+
+  // ========= INIT =========
+  updateThreadPill();
+  addMsg("bot", "Dobrý den! Pro jaký obor nebo typ podnikání řešení hledáte?");
 </script>
-
 </body>
 </html>

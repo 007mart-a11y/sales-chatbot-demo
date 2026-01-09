@@ -14,6 +14,7 @@
     .msg{padding:10px 12px;border-radius:14px;white-space:pre-wrap;max-width:92%}
     .user{align-self:flex-end;background:#dff7e8}
     .bot{align-self:flex-start;background:#f1f3f5}
+    .sys{align-self:flex-start;background:#fff7d6;border:1px dashed #e3c36a}
     .row{display:flex;gap:8px;margin-top:12px}
     input{flex:1;padding:12px;border-radius:12px;border:1px solid #ddd;font-size:16px}
     button{padding:12px 14px;border-radius:12px;border:0;font-weight:700;cursor:pointer}
@@ -28,7 +29,7 @@
   <div class="card">
     <h1>Sales chatbot – debug</h1>
     <div class="sub">
-      ✔ drží paměť (thread_id) · ✔ ukáže co jde do Sheets · ✔ ukáže odpověď ze Sheets
+      ✔ drží paměť (thread_id) · ✔ sbírá kontakt ve frontendu (nezávisle na JSON) · ✔ ukáže odpověď ze Sheets
     </div>
 
     <div id="chat" class="chat"></div>
@@ -42,6 +43,7 @@
     <div class="meta">
       <span class="pill" id="threadInfo">thread_id: –</span>
       <span class="pill" id="status">stav: připraveno</span>
+      <span class="pill" id="stepInfo">krok: –</span>
     </div>
   </div>
 </div>
@@ -53,6 +55,40 @@ const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
 const setThreadId = id => id && localStorage.setItem(THREAD_KEY, id);
 const resetThread = () => localStorage.removeItem(THREAD_KEY);
 
+/* ================= LEAD STATE (frontend paměť) ================= */
+const LEAD_KEY = "sales_chatbot_lead_state_v1";
+const defaultLeadState = () => ({
+  step: "obor",        // obor -> potreba -> name -> phone -> email -> done
+  obor: "",
+  potreba: "",
+  name: "",
+  phone: "",
+  email: "",
+  submitted: false,
+});
+
+function loadLeadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LEAD_KEY) || "null");
+    if (!s || typeof s !== "object") return defaultLeadState();
+    return { ...defaultLeadState(), ...s };
+  } catch {
+    return defaultLeadState();
+  }
+}
+
+function saveLeadState() {
+  localStorage.setItem(LEAD_KEY, JSON.stringify(leadState));
+}
+
+function resetLeadState() {
+  leadState = defaultLeadState();
+  localStorage.removeItem(LEAD_KEY);
+  updateStepInfo();
+}
+
+let leadState = loadLeadState();
+
 /* ================= UI ================= */
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
@@ -60,16 +96,38 @@ const sendBtn = document.getElementById("send");
 const resetBtn = document.getElementById("reset");
 const threadInfo = document.getElementById("threadInfo");
 const statusEl = document.getElementById("status");
+const stepInfo = document.getElementById("stepInfo");
 
 function setStatus(t){ statusEl.textContent = "stav: " + t; }
 function updateThread(){ threadInfo.textContent = "thread_id: " + (getThreadId() || "–"); }
+function updateStepInfo(){ stepInfo.textContent = "krok: " + (leadState.step || "–"); }
 
 function add(role, text){
   const d = document.createElement("div");
-  d.className = "msg " + (role === "user" ? "user" : "bot");
+  d.className = "msg " + (role === "user" ? "user" : role === "sys" ? "sys" : "bot");
   d.textContent = text;
   chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
+}
+
+/* ================= HELPERS: extrakce phone/email ================= */
+function extractEmail(text){
+  const m = String(text).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return m ? m[0] : "";
+}
+
+function extractPhone(text){
+  // vytáhne číslice, povolí +420, mezery, pomlčky
+  const raw = String(text).replace(/[^\d+]/g, "");
+  // vezmeme všechny číslice
+  const digits = raw.replace(/[^\d]/g, "");
+  // v CZ většinou 9 číslic (nebo 12 s 420)
+  if (digits.length >= 9) {
+    // pokud je tam 420 + 9 číslic, necháme posledních 9 jako lokální (nebo nech celé, jak chceš)
+    if (digits.startsWith("420") && digits.length >= 12) return digits.slice(-9);
+    return digits.slice(-9);
+  }
+  return "";
 }
 
 /* ================= LEAD → SHEETS ================= */
@@ -87,26 +145,7 @@ async function sendLead(lead){
   }
 }
 
-/* ================= PARSE JSON Z ODPOVĚDI ================= */
-function extractLead(text){
-  const a = text.indexOf("{");
-  const b = text.lastIndexOf("}");
-  if(a===-1||b===-1||b<=a) return null;
-  try{
-    const o = JSON.parse(text.slice(a,b+1));
-    if(o.name && o.phone){
-      return {
-        name:String(o.name),
-        phone:String(o.phone),
-        email:String(o.email||""),
-        message:String(o.message||"")
-      };
-    }
-  }catch{}
-  return null;
-}
-
-/* ================= CHAT → BACKEND ================= */
+/* ================= CHAT → BACKEND (OpenAI Assistants) ================= */
 async function askBot(text){
   const r = await fetch("/.netlify/functions/search",{
     method:"POST",
@@ -116,11 +155,93 @@ async function askBot(text){
       thread_id:getThreadId()
     })
   });
-  const d = await r.json();
+  const d = await r.json().catch(() => ({}));
   if(d.thread_id) setThreadId(d.thread_id);
   updateThread();
-  if(!d.ok) throw d.error;
-  return d.answer;
+  if(!d.ok) throw (d.error || "search failed");
+  return d.answer || "";
+}
+
+/* ================= CAPTURE: uloží odpověď uživatele podle kroku ================= */
+function captureFromUserMessage(userText){
+  const t = String(userText).trim();
+  if (!t) return;
+
+  // vždycky se pokus zachytit email/telefon, i kdyby přišly dřív
+  const em = extractEmail(t);
+  if (em && !leadState.email) leadState.email = em;
+
+  const ph = extractPhone(t);
+  if (ph && !leadState.phone) leadState.phone = ph;
+
+  // krokové vyplňování (MVP: předpokládáme, že uživatel odpovídá na otázku)
+  if (leadState.step === "obor") {
+    // pokud už poslal telefon/email a nic jiného, necháme krok stejný
+    if (!leadState.obor && !ph && !em) {
+      leadState.obor = t;
+      leadState.step = "potreba";
+    }
+  } else if (leadState.step === "potreba") {
+    if (!leadState.potreba && !ph && !em) {
+      leadState.potreba = t;
+      leadState.step = "name";
+    }
+  } else if (leadState.step === "name") {
+    // jméno je typicky text bez @ a bez 9 číslic
+    if (!leadState.name && !em && !ph) {
+      leadState.name = t;
+      leadState.step = "phone";
+    }
+  } else if (leadState.step === "phone") {
+    // telefon už jsme zkusili vytáhnout, pokud se nepovedl, vezmeme text a zkusíme z něj číslice ještě jednou
+    if (!leadState.phone) {
+      const p2 = extractPhone(t);
+      if (p2) leadState.phone = p2;
+    }
+    if (leadState.phone) leadState.step = "email";
+  } else if (leadState.step === "email") {
+    // email je volitelný: pokud ho nenajdeme, necháme prázdný a přejdeme dál až po další zprávě / nebo hned
+    if (!leadState.email) {
+      const e2 = extractEmail(t);
+      if (e2) leadState.email = e2;
+    }
+    // email může být i prázdný, ale po této odpovědi to považujeme za done
+    leadState.step = "done";
+  }
+
+  saveLeadState();
+  updateStepInfo();
+}
+
+/* ================= SUBMIT: jakmile máme name + phone a ještě to neodešlo ================= */
+async function maybeSubmitLead(){
+  if (leadState.submitted) return;
+
+  const name = String(leadState.name || "").trim();
+  const phone = String(leadState.phone || "").trim();
+  if (!name || !phone) return;
+
+  const email = String(leadState.email || "").trim();
+  const message = [
+    leadState.obor ? `Obor: ${leadState.obor}` : "",
+    leadState.potreba ? `Co řeší: ${leadState.potreba}` : ""
+  ].filter(Boolean).join(" | ");
+
+  const lead = { name, phone, email, message };
+
+  add("sys", "📤 Odesílám do Sheets (frontend sběr, nezávislé na JSON):\n" + JSON.stringify(lead, null, 2));
+  setStatus("odesílám do Sheets…");
+
+  const r = await sendLead(lead);
+  if (r.ok) {
+    leadState.submitted = true;
+    saveLeadState();
+    add("sys", "✅ Sheets odpověď:\n" + r.raw);
+    setStatus("uloženo do Sheets");
+  } else {
+    add("sys", "❌ Chyba Sheets:\n" + r.raw);
+    setStatus("chyba Sheets");
+  }
 }
 
 /* ================= SEND ================= */
@@ -128,38 +249,36 @@ async function send(){
   const t = input.value.trim();
   if(!t) return;
 
+  // textový reset
   if(t.toLowerCase()==="reset"){
     resetThread();
+    resetLeadState();
     chat.innerHTML="";
     updateThread();
+    updateStepInfo();
     add("bot","Nový chat ✅ Pro jaký obor podnikání řešení hledáte?");
     return;
   }
 
+  // 1) zobraz user message
   add("user",t);
   input.value="";
   setStatus("generuji…");
   sendBtn.disabled=true;
 
   try{
+    // 2) nejdřív zachyť data z uživatelovy zprávy
+    captureFromUserMessage(t);
+
+    // 3) odešli do OpenAI a zobraz odpověď
     const ans = await askBot(t);
     add("bot",ans);
 
-    const lead = extractLead(ans);
-    if(lead){
-      add("bot","📤 Odesílám do Sheets:\n"+JSON.stringify(lead,null,2));
-      setStatus("odesílám do Sheets…");
-      const r = await sendLead(lead);
-      if(r.ok){
-        add("bot","✅ Sheets odpověď:\n"+r.raw);
-        setStatus("uloženo do Sheets");
-      }else{
-        add("bot","❌ Chyba Sheets:\n"+r.raw);
-        setStatus("chyba Sheets");
-      }
-    }else{
-      setStatus("připraveno");
-    }
+    // 4) po každé zprávě zkus odeslat lead (jakmile je name+phone)
+    await maybeSubmitLead();
+
+    // 5) status
+    if (!leadState.submitted) setStatus("připraveno");
   }catch(e){
     add("bot","❌ Chyba:\n"+e);
     setStatus("chyba");
@@ -174,13 +293,16 @@ sendBtn.onclick = send;
 input.addEventListener("keydown",e=>e.key==="Enter"&&send());
 resetBtn.onclick = ()=>{
   resetThread();
+  resetLeadState();
   chat.innerHTML="";
   updateThread();
+  updateStepInfo();
   add("bot","Nový chat ✅ Pro jaký obor podnikání řešení hledáte?");
 };
 
 /* ================= INIT ================= */
 updateThread();
+updateStepInfo();
 add("bot","Dobrý den 👋 Pro jaký obor podnikání řešení hledáte?");
 </script>
 </body>

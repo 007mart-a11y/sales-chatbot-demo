@@ -65,6 +65,12 @@ const defaultLeadState = () => ({
   phone: "",
   email: "",
   submitted: false,
+
+  // NOVÉ: počítadlo neplatných pokusů o e-mail
+  emailAttempts: 0,
+
+  // NOVÉ: po 2 neúspěších spustíme fallback a dál už e-mail nevynucujeme
+  emailFallback: false,
 });
 
 function loadLeadState() {
@@ -110,7 +116,7 @@ function add(role, text){
   chat.scrollTop = chat.scrollHeight;
 }
 
-/* ================= HELPERS: extrakce phone/email + čištění textu ================= */
+/* ================= HELPERS: extrakce phone/email + validace + čištění ================= */
 function extractEmail(text){
   const m = String(text).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   return m ? m[0] : "";
@@ -119,6 +125,29 @@ function extractEmail(text){
 function isValidEmail(email){
   const e = String(email || "").trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(e);
+}
+
+function looksLikeEmailAttempt(text){
+  const s = String(text || "").trim();
+  if (!s) return false;
+  if (s.includes("@") || s.includes(".")) return true;
+  const low = s.toLowerCase();
+  if (low.includes("mail") || low.includes("e-mail") || low.includes("email")) return true;
+  return false;
+}
+
+function emailErrorHint(rawText){
+  const t = String(rawText || "").trim();
+
+  if (t && t.includes(".") && !t.includes("@")) {
+    return "E-mail není ve správném tvaru – chybí znak @. Napište ho prosím ve tvaru jmeno@domena.cz.";
+  }
+
+  if (t && t.includes("@") && !/\.[A-Za-z]{2,}\s*$/.test(t)) {
+    return "E-mail není ve správném tvaru – chybí doména (např. .cz). Napište ho prosím ve tvaru jmeno@domena.cz.";
+  }
+
+  return "E-mail není ve správném tvaru. Napište ho prosím ve tvaru jmeno@domena.cz.";
 }
 
 function extractPhone(text){
@@ -135,13 +164,11 @@ function stripEmailPhone(text, email, phone){
 
   if (email) s = s.replace(email, " ");
   if (phone) {
-    // odstraníme různé formáty telefonu (s mezerami)
     const p = phone.split("").join("\\s*");
     const re = new RegExp(p, "g");
     s = s.replace(re, " ");
   }
 
-  // vyhoď nadbytečné znaky
   s = s.replace(/\s+/g, " ").trim();
   return s;
 }
@@ -152,18 +179,17 @@ function looksLikeName(str){
   if (s.includes("@")) return false;
   if ((s.match(/\d/g) || []).length > 0) return false;
 
-  // nechceme brát věty typu "jsem truhlář", "jsme firma", apod.
   const low = s.toLowerCase();
   const bannedStarts = ["jsem ", "jsme ", "firma ", "obor ", "delam ", "dělám ", "jmenuju ", "jmenuji "];
   if (bannedStarts.some(b => low.startsWith(b))) return false;
 
-  // Jméno bereme jen když to vypadá jako 2–3 slova začínající velkým písmenem
   const nameRe = /^[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\s]{1,}\s+[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\s]{1,}(\s+[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\s]{1,})?$/;
   return nameRe.test(s) && s.length <= 60;
 }
 
 /* ================= VYNUCENÍ EMAILU ================= */
 function requireEmailNow(){
+  if (leadState.emailFallback) return false; // po fallback už e-mail nevynucujeme
   const hasName = String(leadState.name || "").trim().length > 0;
   const hasPhone = String(leadState.phone || "").trim().length > 0;
   const hasEmail = isValidEmail(leadState.email);
@@ -214,6 +240,12 @@ function captureFromUserMessage(userText){
   if (email && !leadState.email) leadState.email = email;
   if (phone && !leadState.phone) leadState.phone = phone;
 
+  // pokud už máme validní email, vynuluj pokusy a zruš fallback
+  if (isValidEmail(leadState.email)) {
+    leadState.emailAttempts = 0;
+    leadState.emailFallback = false;
+  }
+
   if (!leadState.name && looksLikeName(cleaned)) {
     leadState.name = cleaned;
   }
@@ -247,7 +279,6 @@ function captureFromUserMessage(userText){
     if (leadState.phone) leadState.step = "email";
   }
 
-  // Email povinný: done až při validním emailu
   if (leadState.step === "email") {
     if (isValidEmail(leadState.email)) leadState.step = "done";
   }
@@ -258,7 +289,7 @@ function captureFromUserMessage(userText){
   return cleaned;
 }
 
-/* ================= SUBMIT: až když máme name + phone + VALID email ================= */
+/* ================= SUBMIT: jen když máme name + phone + VALID email ================= */
 async function maybeSubmitLead(){
   if (leadState.submitted) return;
 
@@ -290,6 +321,37 @@ async function maybeSubmitLead(){
   }
 }
 
+/* ================= EMAIL FLOW: max 2 pokusy + fallback ================= */
+function handleEmailRequired(rawUserText){
+  const hasAttempt = looksLikeEmailAttempt(rawUserText);
+
+  // když uživatel posílá něco a stále nemáme validní email, bereme to jako pokus
+  if (hasAttempt || String(rawUserText || "").trim().length > 0) {
+    leadState.emailAttempts = Number(leadState.emailAttempts || 0) + 1;
+    saveLeadState();
+    updateStepInfo();
+  }
+
+  // 1. a 2. pokus -> konkrétní chyba / obecná výzva
+  if (leadState.emailAttempts <= 2) {
+    if (hasAttempt) {
+      add("bot", emailErrorHint(rawUserText));
+    } else {
+      add("bot", "Ještě potřebuji doplnit váš e-mail, prosím.");
+    }
+    setStatus("čekám na e-mail…");
+    return;
+  }
+
+  // 3. pokus -> fallback
+  leadState.emailFallback = true;
+  saveLeadState();
+  updateStepInfo();
+
+  add("bot", "E-mail se nepodařilo ověřit. Pokud ho teď nechcete zadat, můžete pokračovat později.");
+  setStatus("ukončeno (bez e-mailu)");
+}
+
 /* ================= SEND ================= */
 async function send(){
   const t = input.value.trim();
@@ -314,17 +376,13 @@ async function send(){
     // 1) capture kontaktu + vyčištěný text pro asistenta
     const cleanedForAssistant = captureFromUserMessage(t);
 
-    // 2) KLÍČOVÝ FIX: vždycky hned zkus odeslat lead (po emailu se to odešle okamžitě)
+    // 2) vždycky hned zkus odeslat lead (po validním emailu se to odešle okamžitě)
     await maybeSubmitLead();
-    if (leadState.submitted) {
-      // pokud už je uložené, nic dalšího neřešíme (nevoláme asistenta)
-      return;
-    }
+    if (leadState.submitted) return;
 
-    // 3) pokud je potřeba email -> nevolat backend a vyžádat email
+    // 3) pokud je potřeba email -> max 2 pokusy + fallback, BEZ volání asistenta
     if (requireEmailNow()) {
-      add("bot","Ještě potřebuji doplnit váš e-mail, prosím.");
-      setStatus("čekám na e-mail…");
+      handleEmailRequired(t);
       return;
     }
 
@@ -339,7 +397,7 @@ async function send(){
     const ans = await askBot(cleanedForAssistant);
     add("bot",ans);
 
-    // 6) ještě jednou zkusit submit (kdyby se mezitím doplnilo)
+    // 6) ještě jednou zkusit submit
     await maybeSubmitLead();
 
     if (!leadState.submitted) setStatus("připraveno");

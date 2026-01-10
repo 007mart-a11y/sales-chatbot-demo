@@ -3,215 +3,286 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sales chatbot – test</title>
+  <title>AI chatbot – ukázka</title>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;padding:20px;background:#f6f7f8}
-    .wrap{max-width:900px;margin:0 auto}
-    .card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
-    h1{margin:0 0 6px;font-size:20px}
-    .sub{font-size:13px;color:#666;margin-bottom:12px}
-    .chat{min-height:420px;max-height:65vh;overflow:auto;border:1px solid #e5e5e5;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:10px}
-    .msg{padding:10px 12px;border-radius:14px;white-space:pre-wrap;max-width:92%}
-    .user{align-self:flex-end;background:#dff7e8}
-    .bot{align-self:flex-start;background:#f1f3f5}
-    .sys{align-self:flex-start;background:#fff7d6;border:1px dashed #e3c36a}
-    .row{display:flex;gap:8px;margin-top:12px}
-    input{flex:1;padding:12px;border-radius:12px;border:1px solid #ddd;font-size:16px}
-    button{padding:12px 14px;border-radius:12px;border:0;font-weight:700;cursor:pointer}
-    .btn{background:#0b5;color:#fff}
-    .btn2{background:#eee}
-    .meta{margin-top:10px;font-size:12px;color:#555;display:flex;gap:10px;flex-wrap:wrap}
-    .pill{background:#f0f0f0;padding:4px 8px;border-radius:999px}
+    :root{
+      --bg:#0b0f19;
+      --panel:#121827;
+      --panel2:#0f1524;
+      --stroke:rgba(255,255,255,.10);
+      --text:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.68);
+      --muted2:rgba(255,255,255,.55);
+      --accent:#ff4fd8;
+      --accent2:#9b5cff;
+      --ok:#3ee07a;
+    }
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(255,79,216,.18), transparent 60%),
+                  radial-gradient(900px 500px at 90% 30%, rgba(155,92,255,.18), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+    }
+    .wrap{width:min(520px, 100%)}
+    .widget{
+      border:1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(18,24,39,.96), rgba(10,14,24,.96));
+      border-radius:18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .top{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      padding:14px 14px 10px 14px;
+      border-bottom:1px solid var(--stroke);
+    }
+    .logo{
+      width:34px;height:34px;border-radius:12px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,79,216,.95), rgba(155,92,255,.95));
+      display:flex;align-items:center;justify-content:center;
+      font-weight:800;
+      box-shadow: 0 10px 30px rgba(255,79,216,.18);
+      flex:0 0 auto;
+    }
+    .title{line-height:1.05}
+    .title b{display:block;font-size:14px}
+    .title span{display:block;font-size:12px;color:var(--muted)}
+    .badge{
+      margin-left:auto;
+      font-size:11px;
+      color:var(--muted);
+      border:1px solid var(--stroke);
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.04);
+    }
+
+    .chat{
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      max-height:60vh;
+      overflow:auto;
+    }
+    .msg{
+      max-width:92%;
+      padding:10px 12px;
+      border-radius:16px;
+      border:1px solid var(--stroke);
+      white-space:pre-wrap;
+      word-break:break-word;
+      background: rgba(255,255,255,.04);
+    }
+    .bot{align-self:flex-start;background: rgba(255,255,255,.04)}
+    .user{align-self:flex-end;background: rgba(62,224,122,.10); border-color: rgba(62,224,122,.20)}
+    .hint{color:var(--muted); font-size:12px}
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:6px;
+    }
+    .tile{
+      border:1px solid rgba(255,79,216,.35);
+      background: linear-gradient(180deg, rgba(255,79,216,.10), rgba(155,92,255,.06));
+      border-radius:16px;
+      padding:12px;
+      cursor:pointer;
+      user-select:none;
+      transition: transform .08s ease, filter .08s ease;
+      min-height:74px;
+    }
+    .tile:hover{transform:translateY(-1px); filter:brightness(1.06)}
+    .tile .k{display:flex; align-items:center; gap:10px; margin-bottom:6px}
+    .ico{
+      width:32px;height:32px;border-radius:12px;
+      background: rgba(255,79,216,.18);
+      border:1px solid rgba(255,79,216,.25);
+      display:flex;align-items:center;justify-content:center;
+      font-weight:800;
+    }
+    .tile b{font-size:13px}
+    .tile span{display:block; font-size:12px; color:var(--muted); margin-top:2px}
+    .tile.full{grid-column:1 / -1}
+
+    .list{
+      margin:6px 0 0 0;
+      padding:0;
+      list-style:none;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .list li{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      color:var(--muted);
+      font-size:13px;
+    }
+    .check{
+      width:18px;height:18px;border-radius:7px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.05);
+      display:flex;align-items:center;justify-content:center;
+      color: var(--ok);
+      font-weight:900;
+      flex:0 0 auto;
+      margin-top:1px;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      padding:12px;
+      border-top:1px solid var(--stroke);
+      background: rgba(0,0,0,.12);
+    }
+    input{
+      flex:1;
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      outline:none;
+      font-size:14px;
+    }
+    input::placeholder{color:rgba(255,255,255,.45)}
+    button{
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid rgba(255,79,216,.35);
+      background: linear-gradient(90deg, rgba(255,79,216,.95), rgba(155,92,255,.95));
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+    }
+    button:disabled{opacity:.6; cursor:not-allowed}
+    .foot{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px 12px 12px 12px;
+      color:rgba(255,255,255,.55);
+      font-size:11px;
+    }
+    .pill{
+      border:1px solid var(--stroke);
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.04);
+    }
+    a{color:rgba(255,255,255,.72); text-decoration:none}
   </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="card">
-    <h1>Sales chatbot – debug</h1>
-    <div class="sub">
-      ✔ drží paměť (thread_id) · ✔ sbírá kontakt ve frontendu (nezávisle na JSON) · ✔ ukáže odpověď ze Sheets
+  <div class="widget">
+    <div class="top">
+      <div class="logo">AI</div>
+      <div class="title">
+        <b>AI Chatbot</b>
+        <span>Ukázka zdarma • rychlé vyzkoušení</span>
+      </div>
+      <div class="badge" id="modeBadge">menu</div>
     </div>
 
     <div id="chat" class="chat"></div>
 
     <div class="row">
-      <input id="input" placeholder="Napiš zprávu…" autocomplete="off">
-      <button id="send" class="btn">Odeslat</button>
-      <button id="reset" class="btn2">Nový chat</button>
+      <input id="input" placeholder="Napište zprávu…" autocomplete="off">
+      <button id="send">Odeslat</button>
     </div>
 
-    <div class="meta">
-      <span class="pill" id="threadInfo">thread_id: –</span>
-      <span class="pill" id="status">stav: připraveno</span>
-      <span class="pill" id="stepInfo">krok: –</span>
+    <div class="foot">
+      <span class="pill" id="status">připraveno</span>
+      <span class="pill">powered by demo</span>
     </div>
   </div>
 </div>
 
 <script>
-/* ================= PAMĚŤ THREADU ================= */
+/* ================== CONFIG ================== */
+const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+
+/* ================== THREAD MEMORY ================== */
 const THREAD_KEY = "sales_chatbot_thread_id";
 const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
 const setThreadId = id => id && localStorage.setItem(THREAD_KEY, id);
 const resetThread = () => localStorage.removeItem(THREAD_KEY);
 
-/* ================= LEAD STATE (frontend paměť) ================= */
-const LEAD_KEY = "sales_chatbot_lead_state_v2";
-const defaultLeadState = () => ({
-  step: "obor",        // obor -> potreba -> name -> phone -> email -> done
-  obor: "",
-  potreba: "",
-  name: "",
-  phone: "",
-  email: "",
-  submitted: false,
-
-  // NOVÉ: počítadlo neplatných pokusů o e-mail
-  emailAttempts: 0,
-
-  // NOVÉ: po 2 neúspěších spustíme fallback a dál už e-mail nevynucujeme
-  emailFallback: false,
+/* ================== DEMO STATE ================== */
+const STATE_KEY = "sales_demo_state_v1";
+const defaultState = () => ({
+  mode: "menu",      // menu | url | chat
+  url: "",
+  urlSaved: false,
 });
+let state = loadState();
 
-function loadLeadState() {
-  try {
-    const s = JSON.parse(localStorage.getItem(LEAD_KEY) || "null");
-    if (!s || typeof s !== "object") return defaultLeadState();
-    return { ...defaultLeadState(), ...s };
-  } catch {
-    return defaultLeadState();
+function loadState(){
+  try{
+    const s = JSON.parse(localStorage.getItem(STATE_KEY) || "null");
+    if (!s || typeof s !== "object") return defaultState();
+    return { ...defaultState(), ...s };
+  }catch{
+    return defaultState();
   }
 }
-
-function saveLeadState() {
-  localStorage.setItem(LEAD_KEY, JSON.stringify(leadState));
+function saveState(){
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+function resetState(){
+  state = defaultState();
+  localStorage.removeItem(STATE_KEY);
+  setMode("menu");
 }
 
-function resetLeadState() {
-  leadState = defaultLeadState();
-  localStorage.removeItem(LEAD_KEY);
-  updateStepInfo();
-}
-
-let leadState = loadLeadState();
-
-/* ================= UI ================= */
+/* ================== UI HELPERS ================== */
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
-const resetBtn = document.getElementById("reset");
-const threadInfo = document.getElementById("threadInfo");
 const statusEl = document.getElementById("status");
-const stepInfo = document.getElementById("stepInfo");
+const modeBadge = document.getElementById("modeBadge");
 
-function setStatus(t){ statusEl.textContent = "stav: " + t; }
-function updateThread(){ threadInfo.textContent = "thread_id: " + (getThreadId() || "–"); }
-function updateStepInfo(){ stepInfo.textContent = "krok: " + (leadState.step || "–"); }
-
-function add(role, text){
+function setStatus(t){ statusEl.textContent = t; }
+function setMode(m){
+  state.mode = m;
+  saveState();
+  modeBadge.textContent = m;
+  if (m === "url") input.placeholder = "www.vas-web.cz";
+  else input.placeholder = "Napište zprávu…";
+}
+function add(role, htmlOrText, asHtml=false){
   const d = document.createElement("div");
-  d.className = "msg " + (role === "user" ? "user" : role === "sys" ? "sys" : "bot");
-  d.textContent = text;
+  d.className = "msg " + (role === "user" ? "user" : "bot");
+  if (asHtml) d.innerHTML = htmlOrText;
+  else d.textContent = htmlOrText;
   chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
 }
-
-/* ================= HELPERS: extrakce phone/email + validace + čištění ================= */
-function extractEmail(text){
-  const m = String(text).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  return m ? m[0] : "";
+function addHint(text){
+  const p = document.createElement("div");
+  p.className = "hint";
+  p.textContent = text;
+  chat.appendChild(p);
+  chat.scrollTop = chat.scrollHeight;
 }
 
-function isValidEmail(email){
-  const e = String(email || "").trim();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(e);
-}
-
-function looksLikeEmailAttempt(text){
-  const s = String(text || "").trim();
-  if (!s) return false;
-  if (s.includes("@") || s.includes(".")) return true;
-  const low = s.toLowerCase();
-  if (low.includes("mail") || low.includes("e-mail") || low.includes("email")) return true;
-  return false;
-}
-
-function emailErrorHint(rawText){
-  const t = String(rawText || "").trim();
-
-  if (t && t.includes(".") && !t.includes("@")) {
-    return "E-mail není ve správném tvaru – chybí znak @. Napište ho prosím ve tvaru jmeno@domena.cz.";
-  }
-
-  if (t && t.includes("@") && !/\.[A-Za-z]{2,}\s*$/.test(t)) {
-    return "E-mail není ve správném tvaru – chybí doména (např. .cz). Napište ho prosím ve tvaru jmeno@domena.cz.";
-  }
-
-  return "E-mail není ve správném tvaru. Napište ho prosím ve tvaru jmeno@domena.cz.";
-}
-
-function extractPhone(text){
-  const digits = String(text).replace(/[^\d]/g, "");
-  if (digits.length >= 9) {
-    if (digits.startsWith("420") && digits.length >= 12) return digits.slice(-9);
-    return digits.slice(-9);
-  }
-  return "";
-}
-
-function stripEmailPhone(text, email, phone){
-  let s = String(text);
-
-  if (email) s = s.replace(email, " ");
-  if (phone) {
-    const p = phone.split("").join("\\s*");
-    const re = new RegExp(p, "g");
-    s = s.replace(re, " ");
-  }
-
-  s = s.replace(/\s+/g, " ").trim();
-  return s;
-}
-
-function looksLikeName(str){
-  const s = String(str).trim();
-  if (!s) return false;
-  if (s.includes("@")) return false;
-  if ((s.match(/\d/g) || []).length > 0) return false;
-
-  const low = s.toLowerCase();
-  const bannedStarts = ["jsem ", "jsme ", "firma ", "obor ", "delam ", "dělám ", "jmenuju ", "jmenuji "];
-  if (bannedStarts.some(b => low.startsWith(b))) return false;
-
-  const nameRe = /^[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\s]{1,}\s+[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\s]{1,}(\s+[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\s]{1,})?$/;
-  return nameRe.test(s) && s.length <= 60;
-}
-
-/* ================= VYNUCENÍ EMAILU ================= */
-function requireEmailNow(){
-  if (leadState.emailFallback) return false; // po fallback už e-mail nevynucujeme
-  const hasName = String(leadState.name || "").trim().length > 0;
-  const hasPhone = String(leadState.phone || "").trim().length > 0;
-  const hasEmail = isValidEmail(leadState.email);
-  return hasName && hasPhone && !hasEmail;
-}
-
-/* ================= LEAD → SHEETS ================= */
-async function sendLead(lead){
-  try{
-    const r = await fetch("/.netlify/functions/lead",{
-      method:"POST",
-      headers:{ "content-type":"application/json" },
-      body:JSON.stringify(lead)
-    });
-    const txt = await r.text();
-    return { ok:r.ok, raw:txt };
-  }catch(e){
-    return { ok:false, raw:String(e) };
-  }
-}
-
-/* ================= CHAT → BACKEND (OpenAI Assistants) ================= */
+/* ================== BACKEND CALLS ================== */
 async function askBot(text){
   const r = await fetch("/.netlify/functions/search",{
     method:"POST",
@@ -223,209 +294,230 @@ async function askBot(text){
   });
   const d = await r.json().catch(() => ({}));
   if(d.thread_id) setThreadId(d.thread_id);
-  updateThread();
   if(!d.ok) throw (d.error || "search failed");
   return d.answer || "";
 }
 
-/* ================= CAPTURE (vrací text pro asistenta bez kontaktů) ================= */
-function captureFromUserMessage(userText){
-  const t = String(userText).trim();
-  if (!t) return "";
+// Uloží URL do Sheets přes existující /lead endpoint.
+// Pro začátek ukládáme do pole "message".
+async function saveUrlToSheets(url){
+  const payload = {
+    name: "",
+    phone: "",
+    email: "",
+    message: `Ukázka | URL: ${url} | Source: widget`
+  };
 
-  const email = extractEmail(t);
-  const phone = extractPhone(t);
-  const cleaned = stripEmailPhone(t, email, phone);
+  const r = await fetch("/.netlify/functions/lead",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify(payload)
+  });
 
-  if (email && !leadState.email) leadState.email = email;
-  if (phone && !leadState.phone) leadState.phone = phone;
-
-  // pokud už máme validní email, vynuluj pokusy a zruš fallback
-  if (isValidEmail(leadState.email)) {
-    leadState.emailAttempts = 0;
-    leadState.emailFallback = false;
-  }
-
-  if (!leadState.name && looksLikeName(cleaned)) {
-    leadState.name = cleaned;
-  }
-
-  if (leadState.step === "obor") {
-    if (!leadState.obor && cleaned && !looksLikeName(cleaned)) {
-      leadState.obor = cleaned;
-      leadState.step = "potreba";
-    } else if (leadState.obor) {
-      leadState.step = "potreba";
-    }
-  }
-
-  if (leadState.step === "potreba") {
-    if (!leadState.potreba && cleaned && !looksLikeName(cleaned)) {
-      leadState.potreba = cleaned;
-      leadState.step = "name";
-    } else if (leadState.potreba) {
-      leadState.step = "name";
-    }
-  }
-
-  if (leadState.step === "name") {
-    if (!leadState.name && looksLikeName(cleaned)) {
-      leadState.name = cleaned;
-    }
-    if (leadState.name) leadState.step = "phone";
-  }
-
-  if (leadState.step === "phone") {
-    if (leadState.phone) leadState.step = "email";
-  }
-
-  if (leadState.step === "email") {
-    if (isValidEmail(leadState.email)) leadState.step = "done";
-  }
-
-  saveLeadState();
-  updateStepInfo();
-
-  return cleaned;
+  const txt = await r.text();
+  return { ok: r.ok, raw: txt };
 }
 
-/* ================= SUBMIT: jen když máme name + phone + VALID email ================= */
-async function maybeSubmitLead(){
-  if (leadState.submitted) return;
-
-  const name = String(leadState.name || "").trim();
-  const phone = String(leadState.phone || "").trim();
-  const email = String(leadState.email || "").trim();
-
-  if (!name || !phone || !isValidEmail(email)) return;
-
-  const message = [
-    leadState.obor ? `Obor: ${leadState.obor}` : "",
-    leadState.potreba ? `Co řeší: ${leadState.potreba}` : ""
-  ].filter(Boolean).join(" | ");
-
-  const lead = { name, phone, email, message };
-
-  add("sys", "📤 Odesílám do Sheets:\n" + JSON.stringify(lead, null, 2));
-  setStatus("odesílám do Sheets…");
-
-  const r = await sendLead(lead);
-  if (r.ok) {
-    leadState.submitted = true;
-    saveLeadState();
-    add("sys", "✅ Sheets odpověď:\n" + r.raw);
-    setStatus("uloženo do Sheets");
-  } else {
-    add("sys", "❌ Chyba Sheets:\n" + r.raw);
-    setStatus("chyba Sheets");
-  }
+/* ================== URL VALIDATION ================== */
+function normalizeUrl(u){
+  let s = String(u || "").trim();
+  if (!s) return "";
+  s = s.replace(/\s+/g, "");
+  // pokud user napíše jen doménu, přidáme https://
+  if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+  return s;
+}
+function looksValidUrl(u){
+  const s = String(u || "").trim();
+  if (!s) return false;
+  if (s.length < 6) return false;
+  if (/\s/.test(s)) return false;
+  // musí mít alespoň tečku
+  if (!s.includes(".")) return false;
+  return true;
 }
 
-/* ================= EMAIL FLOW: max 2 pokusy + fallback ================= */
-function handleEmailRequired(rawUserText){
-  const hasAttempt = looksLikeEmailAttempt(rawUserText);
+/* ================== MENU CARDS ================== */
+function renderMenu(){
+  const html = `
+    <div><b>Naše chatboty využívají firmy napříč obory.</b><br><span style="color:rgba(255,255,255,.68)">Vyberte, co chcete udělat:</span></div>
+    <div class="grid" style="margin-top:10px">
+      <div class="tile" data-action="demo">
+        <div class="k"><div class="ico">▶</div><div><b>Získat ukázku zdarma</b><span>Proklik až k zadání URL</span></div></div>
+      </div>
+      <div class="tile" data-action="what">
+        <div class="k"><div class="ico">⚙</div><div><b>Co umí chatbot?</b><span>Rychlý přehled funkcí</span></div></div>
+      </div>
+      <div class="tile full" data-action="ask">
+        <div class="k"><div class="ico">?</div><div><b>Zeptejte se AI</b><span>Napište libovolný dotaz</span></div></div>
+      </div>
+    </div>
+  `;
+  add("bot", html, true);
 
-  // když uživatel posílá něco a stále nemáme validní email, bereme to jako pokus
-  if (hasAttempt || String(rawUserText || "").trim().length > 0) {
-    leadState.emailAttempts = Number(leadState.emailAttempts || 0) + 1;
-    saveLeadState();
-    updateStepInfo();
-  }
+  // attach click handlers
+  const last = chat.lastElementChild;
+  last.querySelectorAll("[data-action]").forEach(el=>{
+    el.addEventListener("click", ()=>handleMenuAction(el.dataset.action));
+  });
+}
 
-  // 1. a 2. pokus -> konkrétní chyba / obecná výzva
-  if (leadState.emailAttempts <= 2) {
-    if (hasAttempt) {
-      add("bot", emailErrorHint(rawUserText));
-    } else {
-      add("bot", "Ještě potřebuji doplnit váš e-mail, prosím.");
-    }
-    setStatus("čekám na e-mail…");
+function renderCapabilities(){
+  const html = `
+    <div><b>Chatbot je multifunkční nástroj pro podporu prodeje i zákaznické podpory.</b><br>
+    <span style="color:rgba(255,255,255,.68)">Podívejte se, co všechno zvládne:</span></div>
+
+    <ul class="list">
+      <li><span class="check">✓</span><span>Odpovídá na dotazy (FAQ, produkty, služby)</span></li>
+      <li><span class="check">✓</span><span>Sbírá poptávky a kvalifikuje zájemce</span></li>
+      <li><span class="check">✓</span><span>Pomůže se zákaznickou podporou (návody, reklamace, navigace)</span></li>
+      <li><span class="check">✓</span><span>Doporučí službu / produkt podle potřeb</span></li>
+      <li><span class="check">✓</span><span>Umí se učit z podkladů firmy (knowledge base)</span></li>
+    </ul>
+
+    <div class="grid" style="margin-top:10px">
+      <div class="tile" data-action="demo">
+        <div class="k"><div class="ico">▶</div><div><b>Získat ukázku zdarma</b><span>Zadáte URL webu</span></div></div>
+      </div>
+      <div class="tile" data-action="ask">
+        <div class="k"><div class="ico">?</div><div><b>Zeptejte se AI</b><span>Na cokoliv</span></div></div>
+      </div>
+    </div>
+  `;
+  add("bot", html, true);
+
+  const last = chat.lastElementChild;
+  last.querySelectorAll("[data-action]").forEach(el=>{
+    el.addEventListener("click", ()=>handleMenuAction(el.dataset.action));
+  });
+}
+
+async function handleMenuAction(action){
+  if (action === "demo"){
+    setMode("url");
+    add("bot", "Ukázku připravíme přímo pro váš web. Jaké jsou vaše stránky?");
+    addHint("Tip: stačí doména (např. muj-web.cz).");
+    input.focus();
     return;
   }
-
-  // 3. pokus -> fallback
-  leadState.emailFallback = true;
-  saveLeadState();
-  updateStepInfo();
-
-  add("bot", "E-mail se nepodařilo ověřit. Pokud ho teď nechcete zadat, můžete pokračovat později.");
-  setStatus("ukončeno (bez e-mailu)");
+  if (action === "what"){
+    renderCapabilities();
+    return;
+  }
+  if (action === "ask"){
+    setMode("chat");
+    add("bot", "Jasně — zeptejte se. 🙂");
+    input.focus();
+    return;
+  }
 }
 
-/* ================= SEND ================= */
+/* ================== SEND ================== */
 async function send(){
   const t = input.value.trim();
-  if(!t) return;
+  if (!t) return;
 
-  if(t.toLowerCase()==="reset"){
+  // quick reset command for you
+  if (t.toLowerCase() === "reset"){
     resetThread();
-    resetLeadState();
-    chat.innerHTML="";
-    updateThread();
-    updateStepInfo();
-    add("bot","Nový chat ✅ Pro jaký obor podnikání řešení hledáte?");
+    resetState();
+    chat.innerHTML = "";
+    init();
+    input.value = "";
     return;
   }
 
-  add("user",t);
-  input.value="";
-  setStatus("generuji…");
-  sendBtn.disabled=true;
+  add("user", t);
+  input.value = "";
+  sendBtn.disabled = true;
 
   try{
-    // 1) capture kontaktu + vyčištěný text pro asistenta
-    const cleanedForAssistant = captureFromUserMessage(t);
+    setStatus("pracují…");
 
-    // 2) vždycky hned zkus odeslat lead (po validním emailu se to odešle okamžitě)
-    await maybeSubmitLead();
-    if (leadState.submitted) return;
+    // URL mode
+    if (state.mode === "url"){
+      if (!looksValidUrl(t)){
+        add("bot", "Tohle nevypadá jako URL. Zkuste prosím třeba „muj-web.cz“ nebo „www.muj-web.cz“.");
+        setStatus("čekám na URL");
+        return;
+      }
 
-    // 3) pokud je potřeba email -> max 2 pokusy + fallback, BEZ volání asistenta
-    if (requireEmailNow()) {
-      handleEmailRequired(t);
-      return;
-    }
+      const url = normalizeUrl(t);
+      state.url = url;
+      saveState();
 
-    // 4) pokud uživatel poslal jen kontakt (cleaned prázdné), jen potvrdíme
-    if (!cleanedForAssistant) {
-      add("bot","Děkuji, mám.");
+      const r = await saveUrlToSheets(url);
+      if (!r.ok){
+        if (DEBUG) add("bot", "Chyba ukládání do Sheets:\n" + r.raw);
+        add("bot", "Omlouvám se, nepodařilo se to uložit. Zkuste to prosím znovu.");
+        setStatus("chyba ukládání");
+        return;
+      }
+
+      state.urlSaved = true;
+      saveState();
+
+      add("bot", "Děkuji — URL mám uložené. ✅");
+      add("bot", "Chcete teď ukázat, co by chatbot na vašem webu mohl dělat, nebo se chcete na něco zeptat?");
+      // přepneme do volného chatu
+      setMode("chat");
       setStatus("připraveno");
       return;
     }
 
-    // 5) běžný dotaz na asistenta – posíláme jen vyčištěný text
-    const ans = await askBot(cleanedForAssistant);
-    add("bot",ans);
+    // Free chat mode (AI)
+    if (state.mode === "chat"){
+      const ans = await askBot(t);
+      add("bot", ans);
+      setStatus("připraveno");
+      return;
+    }
 
-    // 6) ještě jednou zkusit submit
-    await maybeSubmitLead();
+    // Menu mode (user typed without clicking)
+    if (state.mode === "menu"){
+      // když user začne psát, bereme to jako dotaz
+      setMode("chat");
+      const ans = await askBot(t);
+      add("bot", ans);
+      setStatus("připraveno");
+      return;
+    }
 
-    if (!leadState.submitted) setStatus("připraveno");
+    setStatus("připraveno");
   }catch(e){
-    add("bot","❌ Chyba:\n"+e);
+    if (DEBUG) add("bot", "❌ Chyba:\n" + String(e));
+    add("bot", "Omlouvám se, něco se nepovedlo. Zkuste to prosím znovu.");
     setStatus("chyba");
   }finally{
-    sendBtn.disabled=false;
+    sendBtn.disabled = false;
     input.focus();
   }
 }
 
-/* ================= EVENTS ================= */
-sendBtn.onclick = send;
-input.addEventListener("keydown",e=>e.key==="Enter"&&send());
-resetBtn.onclick = ()=>{
-  resetThread();
-  resetLeadState();
-  chat.innerHTML="";
-  updateThread();
-  updateStepInfo();
-  add("bot","Nový chat ✅ Pro jaký obor podnikání řešení hledáte?");
-};
+/* ================== EVENTS ================== */
+document.getElementById("send").onclick = send;
+document.getElementById("input").addEventListener("keydown", e => {
+  if (e.key === "Enter") send();
+});
 
-/* ================= INIT ================= */
-updateThread();
-updateStepInfo();
-add("bot","Dobrý den 👋 Pro jaký obor podnikání řešení hledáte?");
+/* ================== INIT ================== */
+function init(){
+  setStatus("připraveno");
+
+  // pokud už má URL uložené z minula, nabídneme pokračování
+  if (state.urlSaved && state.url){
+    setMode("menu");
+    add("bot", `Vítejte zpět 👋 Máte uložené URL: ${state.url.replace(/^https?:\/\//i,"")}`);
+    add("bot", "Chcete pokračovat ukázkou, nebo se na něco zeptat?");
+    renderMenu();
+    return;
+  }
+
+  setMode("menu");
+  add("bot", "Dobrý den 👋");
+  renderMenu();
+}
+init();
 </script>
 </body>
 </html>

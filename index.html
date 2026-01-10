@@ -276,18 +276,40 @@ function setContext(text){
   saveState();
 }
 async function scrapeHomepage(url){
-  // Očekáváme, že máš scrape.mjs na /.netlify/functions/scrape
-  // a že přijme { url } a vrátí { ok:true, text:"..." } nebo { text:"..." }
-  const r = await fetch("/.netlify/functions/scrape",{
-    method:"POST",
-    headers:{ "content-type":"application/json" },
-    body:JSON.stringify({ url })
-  });
-  const d = await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(d.error || "Scrape failed");
-  const text = String(d.text || d.content || d.body || "");
-  if(!text) throw new Error("Scrape returned empty text");
-  return text;
+  try{
+    const r = await fetch("/.netlify/functions/scrape",{
+      method:"POST",
+      headers:{ "content-type":"application/json" },
+      body:JSON.stringify({ url })
+    });
+
+    const d = await r.json().catch(()=>({}));
+
+    // ❗ nikdy už neházíme error – DEMO musí jet i bez dat
+    if(!r.ok || !d || d.ok !== true){
+      console.log("scrape failed:", d);
+      return "";
+    }
+
+    const text =
+      String(
+        d.text ||
+        d.content ||
+        d.body ||
+        d.html ||
+        d.markdown ||
+        d.result ||
+        ""
+      ).trim();
+
+    // ❗ i prázdný text je OK
+    if(!text) return "";
+
+    return text;
+  }catch(e){
+    console.log("scrape exception:", e);
+    return "";
+  }
 }
 
 /* DEMO AI */
@@ -556,14 +578,34 @@ async function send(){
   try{
     setStatus("pracuji…");
 
-    // lokální ukázka
-    if(isAskingForDemo(t) && state.urlSaved && state.url){
-      setMode("chat");
-      renderDemoPreview();
-      setStatus("připraveno");
-      return;
+   // lokální ukázka + scrape homepage
+if(isAskingForDemo(t) && state.urlSaved && state.url){
+  setMode("chat");
+  add("bot", "Načítám obsah vašeho webu pro ukázku…");
+
+  try {
+    const scraped = await scrapeHomepage(state.url);
+
+    if (scraped && scraped.length > 50) {
+      state.homepageContext = scraped;
+      state.contextStatus = "ok";
+      saveState();
+    } else {
+      state.contextStatus = "fail";
+      saveState();
+      add("bot", "⚠️ Homepage se načetla, ale bez dostatečného obsahu. Ukázka bude obecná.");
     }
 
+  } catch (e) {
+    state.contextStatus = "fail";
+    saveState();
+    add("bot", "⚠️ Nepodařilo se načíst homepage. Ukázka bude obecná.");
+  }
+
+  renderDemoPreview();
+  setStatus("připraveno");
+  return;
+}
     // URL mode → uložit do Sheets + scrape + ukázka
     if(state.mode==="url"){
       if(!looksValidUrl(t)){

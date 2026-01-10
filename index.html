@@ -116,6 +116,11 @@ function extractEmail(text){
   return m ? m[0] : "";
 }
 
+function isValidEmail(email){
+  const e = String(email || "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(e);
+}
+
 function extractPhone(text){
   const digits = String(text).replace(/[^\d]/g, "");
   if (digits.length >= 9) {
@@ -142,13 +147,27 @@ function stripEmailPhone(text, email, phone){
 }
 
 function looksLikeName(str){
-  // jednoduchá heuristika: aspoň 2 slova, žádná @, málo číslic
   const s = String(str).trim();
   if (!s) return false;
   if (s.includes("@")) return false;
   if ((s.match(/\d/g) || []).length > 0) return false;
-  const parts = s.split(" ").filter(Boolean);
-  return parts.length >= 2 && s.length <= 60;
+
+  // nechceme brát věty typu "jsem truhlář", "jsme firma", apod.
+  const low = s.toLowerCase();
+  const bannedStarts = ["jsem ", "jsme ", "firma ", "obor ", "delam ", "dělám ", "jmenuju ", "jmenuji "];
+  if (bannedStarts.some(b => low.startsWith(b))) return false;
+
+  // Jméno bereme jen když to vypadá jako 2–3 slova začínající velkým písmenem
+  const nameRe = /^[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\s]{1,}\s+[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\s]{1,}(\s+[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^\s]{1,})?$/;
+  return nameRe.test(s) && s.length <= 60;
+}
+
+/* ================= VYNUCENÍ EMAILU ================= */
+function requireEmailNow(){
+  const hasName = String(leadState.name || "").trim().length > 0;
+  const hasPhone = String(leadState.phone || "").trim().length > 0;
+  const hasEmail = isValidEmail(leadState.email);
+  return hasName && hasPhone && !hasEmail;
 }
 
 /* ================= LEAD → SHEETS ================= */
@@ -183,10 +202,12 @@ async function askBot(text){
   return d.answer || "";
 }
 
-/* ================= CAPTURE: umí i „všechno v jedné zprávě“ ================= */
+/* ================= CAPTURE: umí i „všechno v jedné zprávě“ =================
+   Vrací text pro asistenta vyčištěný od email/phone.
+*/
 function captureFromUserMessage(userText){
   const t = String(userText).trim();
-  if (!t) return;
+  if (!t) return "";
 
   const email = extractEmail(t);
   const phone = extractPhone(t);
@@ -195,12 +216,12 @@ function captureFromUserMessage(userText){
   if (email && !leadState.email) leadState.email = email;
   if (phone && !leadState.phone) leadState.phone = phone;
 
-  // Pokud uživatel pošle "jméno telefon email" v jedné zprávě, tak cleaned bude jméno
+  // Jméno ber jen pokud to opravdu vypadá jako jméno
   if (!leadState.name && looksLikeName(cleaned)) {
     leadState.name = cleaned;
   }
 
-  // krokové vyplnění — teď už NEBLOKUJEME kvůli email/phone
+  // krokové vyplnění
   if (leadState.step === "obor") {
     if (!leadState.obor && cleaned && !looksLikeName(cleaned)) {
       leadState.obor = cleaned;
@@ -220,7 +241,7 @@ function captureFromUserMessage(userText){
   }
 
   if (leadState.step === "name") {
-    if (!leadState.name && cleaned) {
+    if (!leadState.name && looksLikeName(cleaned)) {
       leadState.name = cleaned;
     }
     if (leadState.name) leadState.step = "phone";
@@ -230,24 +251,27 @@ function captureFromUserMessage(userText){
     if (leadState.phone) leadState.step = "email";
   }
 
+  // Email je povinný: done až při validním emailu
   if (leadState.step === "email") {
-    // email je volitelné; když je vyplněno nebo uživatel odpověděl, jdeme dál
-    leadState.step = "done";
+    if (isValidEmail(leadState.email)) leadState.step = "done";
   }
 
   saveLeadState();
   updateStepInfo();
+
+  return cleaned;
 }
 
-/* ================= SUBMIT: jakmile máme name + phone a ještě to neodešlo ================= */
+/* ================= SUBMIT: až když máme name + phone + VALID email ================= */
 async function maybeSubmitLead(){
   if (leadState.submitted) return;
 
   const name = String(leadState.name || "").trim();
   const phone = String(leadState.phone || "").trim();
-  if (!name || !phone) return;
-
   const email = String(leadState.email || "").trim();
+
+  if (!name || !phone || !isValidEmail(email)) return;
+
   const message = [
     leadState.obor ? `Obor: ${leadState.obor}` : "",
     leadState.potreba ? `Co řeší: ${leadState.potreba}` : ""
@@ -291,11 +315,29 @@ async function send(){
   sendBtn.disabled=true;
 
   try{
-    captureFromUserMessage(t);
+    // 1) z uživatelské zprávy vytáhneme kontakt a vrátíme text pro asistenta bez email/phone
+    const cleanedForAssistant = captureFromUserMessage(t);
 
-    const ans = await askBot(t);
+    // 2) pokud už máme jméno+telefon a email chybí -> NEVOLAT backend a vyžádat email
+    if (requireEmailNow()) {
+      add("bot","Ještě potřebuji doplnit váš e-mail, prosím.");
+      setStatus("čekám na e-mail…");
+      return;
+    }
+
+    // 3) pokud uživatel poslal jen e-mail (cleaned prázdné), neotravujeme asistenta – jen potvrdíme
+    if (!cleanedForAssistant) {
+      add("bot","Děkuji, mám.");
+      await maybeSubmitLead();
+      if (!leadState.submitted) setStatus("připraveno");
+      return;
+    }
+
+    // 4) běžný dotaz na asistenta – posíláme jen vyčištěný text
+    const ans = await askBot(cleanedForAssistant);
     add("bot",ans);
 
+    // 5) zkusit odeslat lead (až při validním emailu)
     await maybeSubmitLead();
 
     if (!leadState.submitted) setStatus("připraveno");

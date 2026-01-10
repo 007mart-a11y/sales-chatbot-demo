@@ -202,9 +202,7 @@ async function askBot(text){
   return d.answer || "";
 }
 
-/* ================= CAPTURE: umí i „všechno v jedné zprávě“ =================
-   Vrací text pro asistenta vyčištěný od email/phone.
-*/
+/* ================= CAPTURE (vrací text pro asistenta bez kontaktů) ================= */
 function captureFromUserMessage(userText){
   const t = String(userText).trim();
   if (!t) return "";
@@ -216,12 +214,10 @@ function captureFromUserMessage(userText){
   if (email && !leadState.email) leadState.email = email;
   if (phone && !leadState.phone) leadState.phone = phone;
 
-  // Jméno ber jen pokud to opravdu vypadá jako jméno
   if (!leadState.name && looksLikeName(cleaned)) {
     leadState.name = cleaned;
   }
 
-  // krokové vyplnění
   if (leadState.step === "obor") {
     if (!leadState.obor && cleaned && !looksLikeName(cleaned)) {
       leadState.obor = cleaned;
@@ -251,7 +247,7 @@ function captureFromUserMessage(userText){
     if (leadState.phone) leadState.step = "email";
   }
 
-  // Email je povinný: done až při validním emailu
+  // Email povinný: done až při validním emailu
   if (leadState.step === "email") {
     if (isValidEmail(leadState.email)) leadState.step = "done";
   }
@@ -315,29 +311,35 @@ async function send(){
   sendBtn.disabled=true;
 
   try{
-    // 1) z uživatelské zprávy vytáhneme kontakt a vrátíme text pro asistenta bez email/phone
+    // 1) capture kontaktu + vyčištěný text pro asistenta
     const cleanedForAssistant = captureFromUserMessage(t);
 
-    // 2) pokud už máme jméno+telefon a email chybí -> NEVOLAT backend a vyžádat email
+    // 2) KLÍČOVÝ FIX: vždycky hned zkus odeslat lead (po emailu se to odešle okamžitě)
+    await maybeSubmitLead();
+    if (leadState.submitted) {
+      // pokud už je uložené, nic dalšího neřešíme (nevoláme asistenta)
+      return;
+    }
+
+    // 3) pokud je potřeba email -> nevolat backend a vyžádat email
     if (requireEmailNow()) {
       add("bot","Ještě potřebuji doplnit váš e-mail, prosím.");
       setStatus("čekám na e-mail…");
       return;
     }
 
-    // 3) pokud uživatel poslal jen e-mail (cleaned prázdné), neotravujeme asistenta – jen potvrdíme
+    // 4) pokud uživatel poslal jen kontakt (cleaned prázdné), jen potvrdíme
     if (!cleanedForAssistant) {
       add("bot","Děkuji, mám.");
-      await maybeSubmitLead();
-      if (!leadState.submitted) setStatus("připraveno");
+      setStatus("připraveno");
       return;
     }
 
-    // 4) běžný dotaz na asistenta – posíláme jen vyčištěný text
+    // 5) běžný dotaz na asistenta – posíláme jen vyčištěný text
     const ans = await askBot(cleanedForAssistant);
     add("bot",ans);
 
-    // 5) zkusit odeslat lead (až při validním emailu)
+    // 6) ještě jednou zkusit submit (kdyby se mezitím doplnilo)
     await maybeSubmitLead();
 
     if (!leadState.submitted) setStatus("připraveno");

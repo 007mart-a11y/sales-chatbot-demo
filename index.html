@@ -165,11 +165,20 @@
 <script>
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-/* THREAD */
+/* SALES THREAD (nepoužíváme teď, ale nechávám pro budoucno) */
 const THREAD_KEY = "sales_chatbot_thread_id";
 const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
 const setThreadId = id => id && localStorage.setItem(THREAD_KEY, id);
 const resetThread = () => localStorage.removeItem(THREAD_KEY);
+
+/* DEMO CONTEXT + DEMO THREAD */
+const DEMO_CONTEXT_KEY = "demo_context_v1";
+const DEMO_THREAD_KEY = "demo_thread_id_v1";
+const getDemoContext = () => localStorage.getItem(DEMO_CONTEXT_KEY) || "";
+const setDemoContext = (t) => localStorage.setItem(DEMO_CONTEXT_KEY, t || "");
+const getDemoThread = () => localStorage.getItem(DEMO_THREAD_KEY) || "";
+const setDemoThread = (id) => id && localStorage.setItem(DEMO_THREAD_KEY, id);
+const resetDemoThread = () => localStorage.removeItem(DEMO_THREAD_KEY);
 
 /* STATE */
 const STATE_KEY = "sales_demo_state_v2";
@@ -209,7 +218,6 @@ function setMode(m){
   input.placeholder = (m==="url") ? "www.vas-web.cz" : "Napište zprávu…";
 }
 function scrollBottom(){
-  // Safari občas ignoruje okamžitý scroll → dáme to dvakrát
   requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; });
   setTimeout(()=>{ chat.scrollTop = chat.scrollHeight; }, 60);
 }
@@ -229,7 +237,7 @@ function addHint(text){
   scrollBottom();
 }
 
-/* BACKEND */
+/* BACKEND (SALES - zatím NEVOLÁME) */
 async function askBot(text){
   const r = await fetch("/.netlify/functions/search",{
     method:"POST",
@@ -241,6 +249,41 @@ async function askBot(text){
   if(!d.ok) throw (d.error || "search failed");
   return d.answer || "";
 }
+
+/* BACKEND (DEMO AI podle scrapnutého webu) */
+async function askDemoBot(text){
+  const r = await fetch("/.netlify/functions/search-demo",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify({
+      message: text,
+      context: getDemoContext(),
+      thread_id: getDemoThread()
+    })
+  });
+  const d = await r.json().catch(()=>({}));
+  if(d.thread_id) setDemoThread(d.thread_id);
+  if(!d.ok) throw (d.error || "search-demo failed");
+  return d.answer || "";
+}
+
+/* SCRAPE homepage */
+async function scrapeHomepage(url){
+  try{
+    const r = await fetch("/.netlify/functions/scrape",{
+      method:"POST",
+      headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ url })
+    });
+    const d = await r.json().catch(()=>({}));
+    if (d.ok && d.context) return String(d.context);
+    return "";
+  }catch{
+    return "";
+  }
+}
+
+/* SHEETS */
 async function saveUrlToSheets(url){
   const payload = { name:"", phone:"", email:"", message:`Ukázka | URL: ${url} | Source: widget` };
   const r = await fetch("/.netlify/functions/lead",{
@@ -269,7 +312,6 @@ function prettyDomain(url){
 
 /* MINI DEMO */
 function demoContent(){
-  // jednoduchý univerzál (později to uděláme víc „na míru“ podle oboru)
   return {
     title: "Mini ukázka (okamžitý náhled)",
     bullets: [
@@ -326,7 +368,7 @@ function renderDemoPreview(){
       <div class="miniActions">
         <span class="chip" data-demo="support">Ukázka pro zákaznickou podporu</span>
         <span class="chip" data-demo="sales">Ukázka pro sběr poptávek</span>
-        <span class="chip" data-demo="ask">Zeptejte se AI</span>
+        <span class="chip" data-demo="ask">Zeptejte se AI (podle vašeho webu)</span>
       </div>
     </div>
   `;
@@ -341,23 +383,23 @@ function renderDemoPreview(){
   state.demoShown = true;
   saveState();
 
-  add("bot","Chcete ukázat ještě variantu pro zákaznickou podporu, nebo se chcete na něco zeptat?");
+  add("bot","Chcete se teď na něco zeptat? Odpovím i podle obsahu vašeho webu 🙂");
 }
 
 function handleDemoChip(which){
   if(which==="support"){
-    add("bot","Jasně — napište, jaké dotazy řešíte nejčastěji v podpoře (reklamace, návody, objednávky…) a ukážu příklady odpovědí.");
     setMode("chat");
+    add("bot","Jasně — napište, jaké dotazy řešíte nejčastěji v podpoře (reklamace, návody, objednávky…) a ukážu, jak by chatbot odpovídal.");
     return;
   }
   if(which==="sales"){
-    add("bot","Pro sběr poptávek: napište, jakou službu / produkt chcete nejvíc prodávat, a navrhnu krátký poptávkový flow.");
     setMode("chat");
+    add("bot","Pro sběr poptávek: napište, jakou službu / produkt chcete nejvíc prodávat, a navrhnu krátký poptávkový flow.");
     return;
   }
   if(which==="ask"){
     setMode("chat");
-    add("bot","Jasně — zeptejte se. 🙂");
+    add("bot","Jasně — zeptejte se. Odpovím podle obsahu vašeho webu (homepage).");
     return;
   }
 }
@@ -375,7 +417,7 @@ function renderMenu(){
         <div class="k"><div class="ico">⚙</div><div><b>Co umí chatbot?</b><span>Rychlý přehled funkcí</span></div></div>
       </div>
       <div class="tile full" data-action="ask">
-        <div class="k"><div class="ico">?</div><div><b>Zeptejte se AI</b><span>Napište libovolný dotaz</span></div></div>
+        <div class="k"><div class="ico">?</div><div><b>Zeptejte se AI</b><span>Odpoví i podle vašeho webu (když zadáte URL)</span></div></div>
       </div>
       ${hasUrl ? `
       <div class="tile full" data-action="show_demo">
@@ -416,16 +458,24 @@ function handleMenuAction(action){
     return;
   }
   if(action==="what"){ renderCapabilities(); return; }
-  if(action==="ask"){ setMode("chat"); add("bot","Jasně — zeptejte se. 🙂"); input.focus(); return; }
+  if(action==="ask"){
+    setMode("chat");
+    if (state.urlSaved && state.url) {
+      add("bot","Jasně — zeptejte se. Odpovím i podle obsahu vašeho webu (homepage).");
+    } else {
+      add("bot","Jasně — zeptejte se. Pokud chcete odpovědi i podle vašeho webu, nejdřív zadejte URL přes „Získat ukázku zdarma“.");
+    }
+    input.focus();
+    return;
+  }
   if(action==="show_demo"){
-    // ✅ vždy zobraz ukázku lokálně
     setMode("chat");
     renderDemoPreview();
     return;
   }
 }
 
-/* LOCAL INTENTS (aby AI „neignorovalo ukázku“) */
+/* LOCAL INTENTS */
 function isAskingForDemo(text){
   const t = String(text||"").toLowerCase();
   return t.includes("uka") && (t.includes("ukazk") || t.includes("ukázk") || t.includes("nahled") || t.includes("náhled"));
@@ -437,7 +487,9 @@ async function send(){
   if(!t) return;
 
   if(t.toLowerCase()==="reset"){
-    resetThread(); resetState();
+    resetThread(); resetDemoThread();
+    setDemoContext("");
+    resetState();
     chat.innerHTML = "";
     init();
     input.value = "";
@@ -451,7 +503,6 @@ async function send(){
   try{
     setStatus("pracují…");
 
-    // ✅ pokud user píše "ukaž ukázku" → řeš lokálně, ne přes AI
     if(isAskingForDemo(t) && state.urlSaved && state.url){
       setMode("chat");
       renderDemoPreview();
@@ -465,10 +516,12 @@ async function send(){
         setStatus("čekám na URL");
         return;
       }
+
       const url = normalizeUrl(t);
       state.url = url;
       saveState();
 
+      // 1) uložit do Sheets
       const r = await saveUrlToSheets(url);
       if(!r.ok){
         if(DEBUG) add("bot","Chyba ukládání do Sheets:\n"+r.raw);
@@ -476,13 +529,23 @@ async function send(){
         setStatus("chyba ukládání");
         return;
       }
-
       state.urlSaved = true;
       saveState();
 
       add("bot","Děkuji — URL mám uložené. ✅");
 
-      // ✅ vždy ukázku rovnou zobraz + scroll
+      // 2) scrape homepage -> uložit kontext + reset demo thread
+      setStatus("načítám obsah webu…");
+      const ctx = await scrapeHomepage(url);
+      setDemoContext(ctx);
+      resetDemoThread();
+
+      // (volitelné debug)
+      if (DEBUG) {
+        add("bot", ctx ? "✅ Načetl jsem obsah webu pro DEMO." : "⚠️ Nepodařilo se načíst obsah webu, DEMO odpovědi budou obecné.");
+      }
+
+      // 3) zobraz mini ukázku
       setMode("chat");
       renderDemoPreview();
 
@@ -490,9 +553,9 @@ async function send(){
       return;
     }
 
-    // chat/menu → AI odpověď
+    // chat/menu → DEMO AI odpověď (podle webu, pokud máme context)
     setMode("chat");
-    const ans = await askBot(t);
+    const ans = await askDemoBot(t);
     add("bot", ans);
     setStatus("připraveno");
 

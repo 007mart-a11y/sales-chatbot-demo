@@ -142,6 +142,43 @@
       margin-top:1px;
     }
 
+    .demoCard{
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      border-radius:16px;
+      padding:12px;
+    }
+    .demoTitle{font-weight:800;margin:0 0 8px 0;font-size:13px}
+    .demoSub{color:var(--muted);font-size:12px;margin:0 0 10px 0}
+    .demoCols{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+    .demoBox{
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:14px;
+      padding:10px 10px;
+      background: rgba(0,0,0,.14);
+    }
+    .demoBox b{display:block;font-size:12px;margin-bottom:6px}
+    .demoBox ul{margin:0;padding-left:16px;color:var(--muted);font-size:12.5px}
+    .miniActions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+    .chip{
+      border:1px solid rgba(255,79,216,.35);
+      background: rgba(255,79,216,.10);
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:12px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .chip:hover{filter:brightness(1.08)}
     .row{
       display:flex;
       gap:10px;
@@ -185,7 +222,6 @@
       border-radius:999px;
       background: rgba(255,255,255,.04);
     }
-    a{color:rgba(255,255,255,.72); text-decoration:none}
   </style>
 </head>
 <body>
@@ -230,6 +266,7 @@ const defaultState = () => ({
   mode: "menu",      // menu | url | chat
   url: "",
   urlSaved: false,
+  demoShown: false,
 });
 let state = loadState();
 
@@ -298,8 +335,6 @@ async function askBot(text){
   return d.answer || "";
 }
 
-// Uloží URL do Sheets přes existující /lead endpoint.
-// Pro začátek ukládáme do pole "message".
 async function saveUrlToSheets(url){
   const payload = {
     name: "",
@@ -318,12 +353,11 @@ async function saveUrlToSheets(url){
   return { ok: r.ok, raw: txt };
 }
 
-/* ================== URL VALIDATION ================== */
+/* ================== URL HELPERS ================== */
 function normalizeUrl(u){
   let s = String(u || "").trim();
   if (!s) return "";
   s = s.replace(/\s+/g, "");
-  // pokud user napíše jen doménu, přidáme https://
   if (!/^https?:\/\//i.test(s)) s = "https://" + s;
   return s;
 }
@@ -332,9 +366,155 @@ function looksValidUrl(u){
   if (!s) return false;
   if (s.length < 6) return false;
   if (/\s/.test(s)) return false;
-  // musí mít alespoň tečku
   if (!s.includes(".")) return false;
   return true;
+}
+function prettyDomain(url){
+  return String(url).replace(/^https?:\/\//i,"").replace(/\/+$/,"");
+}
+
+/* ================== MINI DEMO (OKAMŽITÁ UKÁZKA) ================== */
+function guessUseCaseFromDomain(domain){
+  const d = domain.toLowerCase();
+  // pár jednoduchých heuristik (kdykoliv rozšíříme)
+  if (d.includes("shop") || d.includes("store") || d.includes("eshop")) return "eshop";
+  if (d.includes("hotel") || d.includes("penzion") || d.includes("apart")) return "ubytovani";
+  if (d.includes("auto") || d.includes("servis")) return "autoservis";
+  if (d.includes("realit")) return "reality";
+  // default: služby / řemeslo / firma
+  return "sluzby";
+}
+
+function demoContent(useCase){
+  if (useCase === "eshop"){
+    return {
+      title: "Mini ukázka pro e-shop",
+      bullets: [
+        "Zodpoví dotazy k doručení, platbě a vrácení zboží",
+        "Doporučí produkt podle potřeb (1–2 otázky)",
+        "Pohlídá dostupnost / varianty a pošle odkaz na produkt"
+      ],
+      qas: [
+        {q:"Jak dlouho trvá doručení?", a:"Doručení bývá obvykle 1–3 pracovní dny (upřesníme podle dopravy)."},
+        {q:"Jak funguje vrácení zboží?", a:"Jednoduše – pošlete číslo objednávky a chatbot vás provede postupem."},
+        {q:"Máte to ve velikosti M?", a:"Chatbot ověří dostupnost a rovnou pošle správný odkaz na variantu."},
+      ],
+      flow: ["Co hledáte / pro koho?", "Preferovaná cena / parametry", "Kontakt (pokud chce pomoc)"]
+    };
+  }
+
+  if (useCase === "ubytovani"){
+    return {
+      title: "Mini ukázka pro ubytování",
+      bullets: [
+        "Odpoví na dostupnost a ceny",
+        "Sběr rezervace (datum, osoby, kontakt)",
+        "FAQ: parkování, snídaně, check-in/out"
+      ],
+      qas: [
+        {q:"Máte volno příští víkend?", a:"Chatbot si řekne o datum a počet osob a nabídne možnosti."},
+        {q:"Je u vás parkování?", a:"Odpoví podle vašich pravidel (parkování zdarma / placené / kapacita)."},
+        {q:"Kdy je check-in?", a:"Chatbot sdělí časy check-in/out a doplní instrukce."},
+      ],
+      flow: ["Termín + počet osob", "Typ pokoje / požadavky", "Kontakt pro potvrzení"]
+    };
+  }
+
+  // default: služby / řemeslo
+  return {
+    title: "Mini ukázka pro služby / firmu",
+    bullets: [
+      "Odpovídá na časté dotazy (cena, termín, postup)",
+      "Kvalifikuje zájemce (co přesně potřebuje, kde, kdy)",
+      "Sbírá poptávky 24/7 a zkrátí čas na telefonu"
+    ],
+    qas: [
+      {q:"Kolik to přibližně stojí?", a:"Chatbot si vyžádá pár detailů (rozsah, lokalita) a dá orientační rámec."},
+      {q:"Jak rychle můžete přijet?", a:"Chatbot nabídne nejbližší možné termíny podle vytížení."},
+      {q:"Jak to probíhá?", a:"Stručně popíše postup a co bude potřeba doplnit na místě."},
+    ],
+    flow: ["Co řešíte + lokalita", "Rozsah / rozměr / fotka (volitelně)", "Kontakt pro domluvu"]
+  };
+}
+
+function renderDemoPreview(url){
+  const domain = prettyDomain(url);
+  const useCase = guessUseCaseFromDomain(domain);
+  const c = demoContent(useCase);
+
+  const qaHtml = c.qas.map(x => `
+    <li style="margin-bottom:8px">
+      <b style="display:block;color:rgba(255,255,255,.90);font-size:12px;margin-bottom:2px">❓ ${x.q}</b>
+      <span style="color:rgba(255,255,255,.68);font-size:12.5px">💬 ${x.a}</span>
+    </li>
+  `).join("");
+
+  const bulletsHtml = c.bullets.map(t => `
+    <li><span class="check">✓</span><span>${t}</span></li>
+  `).join("");
+
+  const flowHtml = c.flow.map(s => `<li>${s}</li>`).join("");
+
+  const html = `
+    <div class="demoCard">
+      <div class="demoTitle">Ukázka pro web: ${domain}</div>
+      <div class="demoSub">${c.title} (okamžitý náhled)</div>
+
+      <div class="demoCols">
+        <div class="demoBox">
+          <b>Co by chatbot u vás dělal</b>
+          <ul class="list">${bulletsHtml}</ul>
+        </div>
+
+        <div class="demoBox">
+          <b>3 příklady dotazů a odpovědí</b>
+          <ul style="margin:0;padding-left:16px">${qaHtml}</ul>
+        </div>
+
+        <div class="demoBox">
+          <b>Ukázka sběru poptávky (flow)</b>
+          <ul style="margin:0;padding-left:16px;color:rgba(255,255,255,.68);font-size:12.5px">${flowHtml}</ul>
+        </div>
+      </div>
+
+      <div class="miniActions">
+        <span class="chip" data-demo="support">Ukázka pro zákaznickou podporu</span>
+        <span class="chip" data-demo="sales">Ukázka pro sběr poptávek</span>
+        <span class="chip" data-demo="ask">Zeptejte se AI</span>
+      </div>
+    </div>
+  `;
+
+  add("bot", html, true);
+
+  // click actions
+  const last = chat.lastElementChild;
+  last.querySelectorAll("[data-demo]").forEach(el=>{
+    el.addEventListener("click", ()=>handleDemoChip(el.dataset.demo));
+  });
+
+  // jedna přirozená otázka po ukázce
+  add("bot","Chcete ukázat ještě variantu pro zákaznickou podporu, nebo se chcete na něco zeptat?");
+  state.demoShown = true;
+  saveState();
+}
+
+function handleDemoChip(which){
+  if (which === "support"){
+    add("bot","Jasně — pro zákaznickou podporu chatbot typicky řeší FAQ, návody, reklamace a navigaci po webu. Napište, co nejčastěji zákazníci řeší, a ukážu příklady odpovědí.");
+    setMode("chat");
+    return;
+  }
+  if (which === "sales"){
+    add("bot","Pro sběr poptávek chatbot klade 2–4 krátké otázky a vyfiltruje relevantní zájemce. Napište, jakou službu / produkt chcete nejvíc prodávat, a navrhnu flow.");
+    setMode("chat");
+    return;
+  }
+  if (which === "ask"){
+    setMode("chat");
+    add("bot","Jasně — zeptejte se. 🙂");
+    return;
+  }
 }
 
 /* ================== MENU CARDS ================== */
@@ -355,7 +535,6 @@ function renderMenu(){
   `;
   add("bot", html, true);
 
-  // attach click handlers
   const last = chat.lastElementChild;
   last.querySelectorAll("[data-action]").forEach(el=>{
     el.addEventListener("click", ()=>handleMenuAction(el.dataset.action));
@@ -417,7 +596,6 @@ async function send(){
   const t = input.value.trim();
   if (!t) return;
 
-  // quick reset command for you
   if (t.toLowerCase() === "reset"){
     resetThread();
     resetState();
@@ -458,7 +636,10 @@ async function send(){
       saveState();
 
       add("bot", "Děkuji — URL mám uložené. ✅");
-      add("bot", "Chcete teď ukázat, co by chatbot na vašem webu mohl dělat, nebo se chcete na něco zeptat?");
+
+      // ✅ NOVÉ: okamžitě zobraz mini ukázku
+      renderDemoPreview(url);
+
       // přepneme do volného chatu
       setMode("chat");
       setStatus("připraveno");
@@ -475,7 +656,6 @@ async function send(){
 
     // Menu mode (user typed without clicking)
     if (state.mode === "menu"){
-      // když user začne psát, bereme to jako dotaz
       setMode("chat");
       const ans = await askBot(t);
       add("bot", ans);
@@ -504,11 +684,12 @@ document.getElementById("input").addEventListener("keydown", e => {
 function init(){
   setStatus("připraveno");
 
-  // pokud už má URL uložené z minula, nabídneme pokračování
   if (state.urlSaved && state.url){
     setMode("menu");
-    add("bot", `Vítejte zpět 👋 Máte uložené URL: ${state.url.replace(/^https?:\/\//i,"")}`);
-    add("bot", "Chcete pokračovat ukázkou, nebo se na něco zeptat?");
+    add("bot", `Vítejte zpět 👋 Máte uložené URL: ${prettyDomain(state.url)}`);
+    if (!state.demoShown){
+      add("bot","Chcete rovnou ukázku, nebo se chcete na něco zeptat?");
+    }
     renderMenu();
     return;
   }

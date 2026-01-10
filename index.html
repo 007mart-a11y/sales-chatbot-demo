@@ -13,6 +13,7 @@
       --accent:#ff4fd8;
       --accent2:#9b5cff;
       --ok:#3ee07a;
+      --warn:#ffcc66;
     }
     html,body{height:100%}
     body{
@@ -25,7 +26,7 @@
       display:flex;align-items:center;justify-content:center;
       padding:18px;
     }
-    .wrap{width:min(520px, 100%)}
+    .wrap{width:min(560px, 100%)}
     .widget{
       border:1px solid var(--stroke);
       background: linear-gradient(180deg, rgba(18,24,39,.96), rgba(10,14,24,.96));
@@ -60,7 +61,7 @@
     .chat{
       padding:12px;
       display:flex;flex-direction:column;gap:10px;
-      max-height:60vh; overflow:auto;
+      max-height:64vh; overflow:auto;
       scroll-behavior:smooth;
     }
     .msg{
@@ -75,6 +76,7 @@
     .bot{align-self:flex-start}
     .user{align-self:flex-end;background: rgba(62,224,122,.10); border-color: rgba(62,224,122,.20)}
     .hint{color:var(--muted); font-size:12px}
+    .tiny{color:rgba(255,255,255,.55); font-size:11px}
 
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
     .tile{
@@ -165,28 +167,22 @@
 <script>
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-/* SALES THREAD (nepoužíváme teď, ale nechávám pro budoucno) */
-const THREAD_KEY = "sales_chatbot_thread_id";
-const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
-const setThreadId = id => id && localStorage.setItem(THREAD_KEY, id);
-const resetThread = () => localStorage.removeItem(THREAD_KEY);
-
-/* DEMO CONTEXT + DEMO THREAD */
-const DEMO_CONTEXT_KEY = "demo_context_v1";
-const DEMO_THREAD_KEY = "demo_thread_id_v1";
-const getDemoContext = () => localStorage.getItem(DEMO_CONTEXT_KEY) || "";
-const setDemoContext = (t) => localStorage.setItem(DEMO_CONTEXT_KEY, t || "");
-const getDemoThread = () => localStorage.getItem(DEMO_THREAD_KEY) || "";
-const setDemoThread = (id) => id && localStorage.setItem(DEMO_THREAD_KEY, id);
-const resetDemoThread = () => localStorage.removeItem(DEMO_THREAD_KEY);
+/* THREAD */
+const THREAD_KEY_DEMO = "demo_chatbot_thread_id";
+const getThreadId = () => localStorage.getItem(THREAD_KEY_DEMO) || "";
+const setThreadId = id => id && localStorage.setItem(THREAD_KEY_DEMO, id);
+const resetThread = () => localStorage.removeItem(THREAD_KEY_DEMO);
 
 /* STATE */
-const STATE_KEY = "sales_demo_state_v2";
+const STATE_KEY = "sales_demo_state_v3";
+const CONTEXT_KEY = "sales_demo_homepage_context_v1";
+
 const defaultState = () => ({
   mode: "menu",       // menu | url | chat
   url: "",
   urlSaved: false,
   demoShown: false,
+  contextReady: false,
 });
 let state = loadState();
 
@@ -201,6 +197,7 @@ function saveState(){ localStorage.setItem(STATE_KEY, JSON.stringify(state)); }
 function resetState(){
   state = defaultState();
   localStorage.removeItem(STATE_KEY);
+  localStorage.removeItem(CONTEXT_KEY);
   setMode("menu");
 }
 
@@ -236,66 +233,15 @@ function addHint(text){
   chat.appendChild(p);
   scrollBottom();
 }
-
-/* BACKEND (SALES - zatím NEVOLÁME) */
-async function askBot(text){
-  const r = await fetch("/.netlify/functions/search",{
-    method:"POST",
-    headers:{ "content-type":"application/json" },
-    body:JSON.stringify({ message:text, thread_id:getThreadId() })
-  });
-  const d = await r.json().catch(()=>({}));
-  if(d.thread_id) setThreadId(d.thread_id);
-  if(!d.ok) throw (d.error || "search failed");
-  return d.answer || "";
+function addTiny(text){
+  const p = document.createElement("div");
+  p.className = "tiny";
+  p.textContent = text;
+  chat.appendChild(p);
+  scrollBottom();
 }
 
-/* BACKEND (DEMO AI podle scrapnutého webu) */
-async function askDemoBot(text){
-  const r = await fetch("/.netlify/functions/search-demo",{
-    method:"POST",
-    headers:{ "content-type":"application/json" },
-    body:JSON.stringify({
-      message: text,
-      context: getDemoContext(),
-      thread_id: getDemoThread()
-    })
-  });
-  const d = await r.json().catch(()=>({}));
-  if(d.thread_id) setDemoThread(d.thread_id);
-  if(!d.ok) throw (d.error || "search-demo failed");
-  return d.answer || "";
-}
-
-/* SCRAPE homepage */
-async function scrapeHomepage(url){
-  try{
-    const r = await fetch("/.netlify/functions/scrape",{
-      method:"POST",
-      headers:{ "content-type":"application/json" },
-      body: JSON.stringify({ url })
-    });
-    const d = await r.json().catch(()=>({}));
-    if (d.ok && d.context) return String(d.context);
-    return "";
-  }catch{
-    return "";
-  }
-}
-
-/* SHEETS */
-async function saveUrlToSheets(url){
-  const payload = { name:"", phone:"", email:"", message:`Ukázka | URL: ${url} | Source: widget` };
-  const r = await fetch("/.netlify/functions/lead",{
-    method:"POST",
-    headers:{ "content-type":"application/json" },
-    body:JSON.stringify(payload)
-  });
-  const txt = await r.text();
-  return { ok:r.ok, raw:txt };
-}
-
-/* URL helpers */
+/* HELPERS */
 function normalizeUrl(u){
   let s = String(u||"").trim().replace(/\s+/g,"");
   if(!s) return "";
@@ -310,45 +256,113 @@ function prettyDomain(url){
   return String(url).replace(/^https?:\/\//i,"").replace(/\/+$/,"");
 }
 
-/* MINI DEMO */
-function demoContent(){
+/* BACKEND CALLS */
+async function saveUrlToSheets(url){
+  const payload = { name:"", phone:"", email:"", message:`Ukázka | URL: ${url} | Source: widget` };
+  const r = await fetch("/.netlify/functions/lead",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify(payload)
+  });
+  const txt = await r.text();
+  return { ok:r.ok, raw:txt };
+}
+
+/* SCRAPE (homepage only) */
+function getContext(){ return localStorage.getItem(CONTEXT_KEY) || ""; }
+function setContext(text){
+  localStorage.setItem(CONTEXT_KEY, text || "");
+  state.contextReady = !!(text && text.length > 50);
+  saveState();
+}
+async function scrapeHomepage(url){
+  // Očekáváme, že máš scrape.mjs na /.netlify/functions/scrape
+  // a že přijme { url } a vrátí { ok:true, text:"..." } nebo { text:"..." }
+  const r = await fetch("/.netlify/functions/scrape",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify({ url })
+  });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error || "Scrape failed");
+  const text = String(d.text || d.content || d.body || "");
+  if(!text) throw new Error("Scrape returned empty text");
+  return text;
+}
+
+/* DEMO AI */
+async function askDemoAI(text){
+  const context = getContext();
+  const r = await fetch("/.netlify/functions/search-demo",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify({
+      message:text,
+      thread_id:getThreadId(),
+      context,
+      site_url: state.url || ""
+    })
+  });
+  const d = await r.json().catch(()=>({}));
+  if(d.thread_id) setThreadId(d.thread_id);
+  if(!d.ok) throw new Error(d.error || "search-demo failed");
+  return d.answer || "";
+}
+
+/* MINI DEMO (lokální ukázka) */
+function buildDemoFromContext(){
+  const raw = getContext();
+  const domain = prettyDomain(state.url || "");
+  const snippet = raw.slice(0, 600).replace(/\s+/g," ").trim();
+
+  // velmi jednoduchá heuristika – jen aby to vypadalo „na míru“
+  const lower = raw.toLowerCase();
+  const hasEshop = lower.includes("košík") || lower.includes("doprava") || lower.includes("platba") || lower.includes("produkt");
+  const hasBooking = lower.includes("rezerv") || lower.includes("objednat") || lower.includes("termín") || lower.includes("kalendář");
+
+  let typeLabel = "služby";
+  if(hasEshop) typeLabel = "e-shop";
+  if(hasBooking) typeLabel = "rezervace / služby";
+
   return {
     title: "Mini ukázka (okamžitý náhled)",
+    sub: `Vychází z obsahu homepage (${typeLabel}).`,
     bullets: [
-      "Odpovídá na časté dotazy (cena, termín, postup)",
-      "Kvalifikuje zájemce (co přesně potřebuje, kde, kdy)",
-      "Sbírá poptávky 24/7 a zkrátí čas na telefonu"
+      "Odpovídá na časté dotazy (cena, termín, postup, služby)",
+      "Navede uživatele na správnou stránku / kontakt",
+      "Sbírá poptávky 24/7 a šetří čas na telefonu"
     ],
     qas: [
-      {q:"Kolik to přibližně stojí?", a:"Chatbot si vyžádá pár detailů (rozsah, lokalita) a dá orientační rámec."},
-      {q:"Jak rychle můžete přijet?", a:"Chatbot nabídne nejbližší možné termíny podle vytížení."},
-      {q:"Jak to probíhá?", a:"Stručně popíše postup a co bude potřeba doplnit na místě."},
+      {q:"Co nabízíte a jak to funguje?", a:"Chatbot shrne služby a vysvětlí postup v několika krocích."},
+      {q:"Kolik to stojí?", a:"Chatbot si řekne o pár detailů a dá orientační rámec / odkaz na ceník."},
+      {q:"Jak rychle to umíte?", a:"Chatbot navrhne další krok a doptá se na termín/lokalitu."},
     ],
-    flow: ["Co řešíte + lokalita", "Rozsah / rozměr / fotka (volitelně)", "Kontakt pro domluvu"]
+    flow: ["Co řešíte (stručně)", "Upřesnění (lokalita / rozsah)", "Kontakt pro domluvu"],
+    snippet,
+    domain
   };
 }
 
 function renderDemoPreview(){
-  if(!state.url) {
+  if(!state.url){
     add("bot","Nejdřív prosím zadejte URL webu (Získat ukázku zdarma).");
     return;
   }
-
-  const domain = prettyDomain(state.url);
-  const c = demoContent();
-
+  const c = buildDemoFromContext();
   const bulletsHtml = c.bullets.map(t => `<li><span class="check">✓</span><span>${t}</span></li>`).join("");
+
   const qaHtml = c.qas.map(x => `
     <li style="margin-bottom:10px">
       <b style="display:block;color:rgba(255,255,255,.90);font-size:12px;margin-bottom:2px">❓ ${x.q}</b>
       <span style="color:rgba(255,255,255,.68);font-size:12.5px">💬 ${x.a}</span>
     </li>`).join("");
+
   const flowHtml = c.flow.map(s => `<li>${s}</li>`).join("");
 
   const html = `
     <div class="demoCard">
-      <div class="demoTitle">Ukázka pro web: ${domain}</div>
-      <div class="demoSub">${c.title}</div>
+      <div class="demoTitle">Ukázka pro web: ${c.domain}</div>
+      <div class="demoSub">${c.title} • ${c.sub}</div>
 
       <div class="demoBox">
         <b>Co by chatbot u vás dělal</b>
@@ -365,10 +379,17 @@ function renderDemoPreview(){
         <ul style="margin:0;padding-left:16px;color:rgba(255,255,255,.68);font-size:12.5px">${flowHtml}</ul>
       </div>
 
+      <div class="demoBox">
+        <b>Výřez z homepage (pro demo AI)</b>
+        <div style="color:rgba(255,255,255,.68);font-size:12.5px;line-height:1.35">
+          ${c.snippet ? c.snippet : "<i>(zatím nemám text z homepage)</i>"}
+        </div>
+      </div>
+
       <div class="miniActions">
-        <span class="chip" data-demo="support">Ukázka pro zákaznickou podporu</span>
-        <span class="chip" data-demo="sales">Ukázka pro sběr poptávek</span>
-        <span class="chip" data-demo="ask">Zeptejte se AI (podle vašeho webu)</span>
+        <span class="chip" data-demo="ask">Zeptejte se AI na váš web</span>
+        <span class="chip" data-demo="support">Podpora (reklamace, návody…)</span>
+        <span class="chip" data-demo="sales">Sběr poptávek</span>
       </div>
     </div>
   `;
@@ -383,23 +404,23 @@ function renderDemoPreview(){
   state.demoShown = true;
   saveState();
 
-  add("bot","Chcete se teď na něco zeptat? Odpovím i podle obsahu vašeho webu 🙂");
+  add("bot","Teď se mě klidně zeptejte na cokoli ohledně vašeho webu – odpovím podle homepage (DEMO).");
 }
 
 function handleDemoChip(which){
   if(which==="support"){
+    add("bot","Jasně — napište, jaké dotazy řešíte nejčastěji v podpoře (reklamace, návody, objednávky…) a ukážu návrh.");
     setMode("chat");
-    add("bot","Jasně — napište, jaké dotazy řešíte nejčastěji v podpoře (reklamace, návody, objednávky…) a ukážu, jak by chatbot odpovídal.");
     return;
   }
   if(which==="sales"){
+    add("bot","Pro sběr poptávek: napište, co chcete nejvíc prodávat / nabízet, a navrhnu krátký poptávkový flow.");
     setMode("chat");
-    add("bot","Pro sběr poptávek: napište, jakou službu / produkt chcete nejvíc prodávat, a navrhnu krátký poptávkový flow.");
     return;
   }
   if(which==="ask"){
     setMode("chat");
-    add("bot","Jasně — zeptejte se. Odpovím podle obsahu vašeho webu (homepage).");
+    add("bot","Jasně — zeptejte se (budu odpovídat podle homepage). 🙂");
     return;
   }
 }
@@ -407,22 +428,45 @@ function handleDemoChip(which){
 /* MENU */
 function renderMenu(){
   const hasUrl = !!(state.urlSaved && state.url);
+  const hasCtx = !!(getContext() && getContext().length > 50);
+
   const html = `
-    <div><b>Naše chatboty využívají firmy napříč obory.</b><br><span style="color:rgba(255,255,255,.68)">Vyberte, co chcete udělat:</span></div>
+    <div><b>Naše chatboty využívají firmy napříč obory.</b><br>
+      <span style="color:rgba(255,255,255,.68)">Vyberte, co chcete udělat:</span>
+    </div>
+
     <div class="grid" style="margin-top:10px">
       <div class="tile" data-action="demo">
-        <div class="k"><div class="ico">▶</div><div><b>Získat ukázku zdarma</b><span>Proklik až k zadání URL</span></div></div>
+        <div class="k">
+          <div class="ico">▶</div>
+          <div><b>Získat ukázku zdarma</b><span>Proklik až k zadání URL</span></div>
+        </div>
       </div>
+
       <div class="tile" data-action="what">
-        <div class="k"><div class="ico">⚙</div><div><b>Co umí chatbot?</b><span>Rychlý přehled funkcí</span></div></div>
+        <div class="k">
+          <div class="ico">⚙</div>
+          <div><b>Co umí chatbot?</b><span>Rychlý přehled funkcí</span></div>
+        </div>
       </div>
+
       <div class="tile full" data-action="ask">
-        <div class="k"><div class="ico">?</div><div><b>Zeptejte se AI</b><span>Odpoví i podle vašeho webu (když zadáte URL)</span></div></div>
+        <div class="k">
+          <div class="ico">?</div>
+          <div><b>Zeptejte se AI</b><span>Napište libovolný dotaz</span></div>
+        </div>
       </div>
+
       ${hasUrl ? `
-      <div class="tile full" data-action="show_demo">
-        <div class="k"><div class="ico">✓</div><div><b>Zobrazit ukázku pro uložené URL</b><span>${prettyDomain(state.url)}</span></div></div>
-      </div>
+        <div class="tile full" data-action="show_demo">
+          <div class="k">
+            <div class="ico">${hasCtx ? "✓" : "!"}</div>
+            <div>
+              <b>Zobrazit ukázku pro uložené URL</b>
+              <span>${prettyDomain(state.url)} ${hasCtx ? "• kontext OK" : "• chybí scrape"}</span>
+            </div>
+          </div>
+        </div>
       ` : ``}
     </div>
   `;
@@ -437,7 +481,8 @@ function renderMenu(){
 function renderCapabilities(){
   const html = `
     <div><b>Chatbot je multifunkční nástroj pro podporu prodeje i zákaznické podpory.</b><br>
-    <span style="color:rgba(255,255,255,.68)">Podívejte se, co všechno zvládne:</span></div>
+      <span style="color:rgba(255,255,255,.68)">Podívejte se, co všechno zvládne:</span>
+    </div>
     <ul class="list">
       <li><span class="check">✓</span><span>Odpovídá na dotazy (FAQ, produkty, služby)</span></li>
       <li><span class="check">✓</span><span>Sbírá poptávky a kvalifikuje zájemce</span></li>
@@ -458,27 +503,37 @@ function handleMenuAction(action){
     return;
   }
   if(action==="what"){ renderCapabilities(); return; }
-  if(action==="ask"){
-    setMode("chat");
-    if (state.urlSaved && state.url) {
-      add("bot","Jasně — zeptejte se. Odpovím i podle obsahu vašeho webu (homepage).");
-    } else {
-      add("bot","Jasně — zeptejte se. Pokud chcete odpovědi i podle vašeho webu, nejdřív zadejte URL přes „Získat ukázku zdarma“.");
-    }
-    input.focus();
-    return;
-  }
+  if(action==="ask"){ setMode("chat"); add("bot","Jasně — zeptejte se. 🙂"); input.focus(); return; }
   if(action==="show_demo"){
     setMode("chat");
+    // když chybí kontext, zkusíme ho udělat znovu automaticky
+    if(!getContext()){
+      add("bot","Nemám ještě text z homepage. Zkusím ho stáhnout…");
+      (async ()=>{
+        try{
+          setStatus("stahuji homepage…");
+          const txt = await scrapeHomepage(state.url);
+          setContext(txt);
+          add("bot","Hotovo — homepage mám načtenou. ✅");
+          renderDemoPreview();
+        }catch(e){
+          add("bot","Nepodařilo se stáhnout homepage. Zkuste prosím znovu nebo pošlete URL ještě jednou.");
+          if(DEBUG) add("bot","DEBUG scrape error: "+String(e));
+        }finally{
+          setStatus("připraveno");
+        }
+      })();
+      return;
+    }
     renderDemoPreview();
     return;
   }
 }
 
-/* LOCAL INTENTS */
+/* INTENT: “ukaž ukázku” */
 function isAskingForDemo(text){
   const t = String(text||"").toLowerCase();
-  return t.includes("uka") && (t.includes("ukazk") || t.includes("ukázk") || t.includes("nahled") || t.includes("náhled"));
+  return t.includes("ukazk") || t.includes("ukázk") || t.includes("nahled") || t.includes("náhled");
 }
 
 /* SEND */
@@ -487,9 +542,7 @@ async function send(){
   if(!t) return;
 
   if(t.toLowerCase()==="reset"){
-    resetThread(); resetDemoThread();
-    setDemoContext("");
-    resetState();
+    resetThread(); resetState();
     chat.innerHTML = "";
     init();
     input.value = "";
@@ -501,8 +554,9 @@ async function send(){
   sendBtn.disabled = true;
 
   try{
-    setStatus("pracují…");
+    setStatus("pracuji…");
 
+    // lokální ukázka
     if(isAskingForDemo(t) && state.urlSaved && state.url){
       setMode("chat");
       renderDemoPreview();
@@ -510,6 +564,7 @@ async function send(){
       return;
     }
 
+    // URL mode → uložit do Sheets + scrape + ukázka
     if(state.mode==="url"){
       if(!looksValidUrl(t)){
         add("bot","Tohle nevypadá jako URL. Zkuste prosím třeba „muj-web.cz“ nebo „www.muj-web.cz“.");
@@ -531,31 +586,31 @@ async function send(){
       }
       state.urlSaved = true;
       saveState();
-
       add("bot","Děkuji — URL mám uložené. ✅");
 
-      // 2) scrape homepage -> uložit kontext + reset demo thread
-      setStatus("načítám obsah webu…");
-      const ctx = await scrapeHomepage(url);
-      setDemoContext(ctx);
-      resetDemoThread();
+      // 2) scrape homepage
+      add("bot","Ještě si rychle načtu homepage, ať ukázka odpovídá vašemu webu…");
+      setStatus("stahuji homepage…");
+      const txt = await scrapeHomepage(url);
+      setContext(txt);
+      add("bot","Hotovo — homepage mám načtenou. ✅");
 
-      // (volitelné debug)
-      if (DEBUG) {
-        add("bot", ctx ? "✅ Načetl jsem obsah webu pro DEMO." : "⚠️ Nepodařilo se načíst obsah webu, DEMO odpovědi budou obecné.");
-      }
-
-      // 3) zobraz mini ukázku
+      // 3) ukázka + přepnutí do chatu
       setMode("chat");
       renderDemoPreview();
-
       setStatus("připraveno");
       return;
     }
 
-    // chat/menu → DEMO AI odpověď (podle webu, pokud máme context)
+    // chat/menu → DEMO AI odpověď (podle homepage)
     setMode("chat");
-    const ans = await askDemoBot(t);
+
+    // pokud nemáme context, upozorni
+    if(!getContext() && state.url){
+      add("bot","⚠️ Nemám načtenou homepage, odpovím obecně. (Zkuste „Zobrazit ukázku“ pro znovunačtení.)");
+    }
+
+    const ans = await askDemoAI(t);
     add("bot", ans);
     setStatus("připraveno");
 
@@ -580,9 +635,12 @@ function init(){
 
   if(state.urlSaved && state.url){
     add("bot", `Vítejte zpět 👋 Máte uložené URL: ${prettyDomain(state.url)}`);
+    if(getContext()) addTiny("Kontekst homepage je načtený ✅");
+    else addTiny("Kontekst homepage není načtený (lze dohrát přes „Zobrazit ukázku…“) ");
   } else {
     add("bot","Dobrý den 👋");
   }
+
   renderMenu();
 }
 init();

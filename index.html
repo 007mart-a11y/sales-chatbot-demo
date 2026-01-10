@@ -7,12 +7,9 @@
   <style>
     :root{
       --bg:#0b0f19;
-      --panel:#121827;
-      --panel2:#0f1524;
       --stroke:rgba(255,255,255,.10);
       --text:rgba(255,255,255,.92);
       --muted:rgba(255,255,255,.68);
-      --muted2:rgba(255,255,255,.55);
       --accent:#ff4fd8;
       --accent2:#9b5cff;
       --ok:#3ee07a;
@@ -25,9 +22,7 @@
                   radial-gradient(900px 500px at 90% 30%, rgba(155,92,255,.18), transparent 60%),
                   var(--bg);
       color:var(--text);
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      display:flex;align-items:center;justify-content:center;
       padding:18px;
     }
     .wrap{width:min(520px, 100%)}
@@ -39,9 +34,7 @@
       overflow:hidden;
     }
     .top{
-      display:flex;
-      gap:12px;
-      align-items:center;
+      display:flex;gap:12px;align-items:center;
       padding:14px 14px 10px 14px;
       border-bottom:1px solid var(--stroke);
     }
@@ -58,21 +51,17 @@
     .title span{display:block;font-size:12px;color:var(--muted)}
     .badge{
       margin-left:auto;
-      font-size:11px;
-      color:var(--muted);
+      font-size:11px;color:var(--muted);
       border:1px solid var(--stroke);
-      padding:6px 10px;
-      border-radius:999px;
+      padding:6px 10px;border-radius:999px;
       background: rgba(255,255,255,.04);
     }
 
     .chat{
       padding:12px;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      max-height:60vh;
-      overflow:auto;
+      display:flex;flex-direction:column;gap:10px;
+      max-height:60vh; overflow:auto;
+      scroll-behavior:smooth;
     }
     .msg{
       max-width:92%;
@@ -83,23 +72,15 @@
       word-break:break-word;
       background: rgba(255,255,255,.04);
     }
-    .bot{align-self:flex-start;background: rgba(255,255,255,.04)}
+    .bot{align-self:flex-start}
     .user{align-self:flex-end;background: rgba(62,224,122,.10); border-color: rgba(62,224,122,.20)}
     .hint{color:var(--muted); font-size:12px}
 
-    .grid{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
-      margin-top:6px;
-    }
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
     .tile{
       border:1px solid rgba(255,79,216,.35);
       background: linear-gradient(180deg, rgba(255,79,216,.10), rgba(155,92,255,.06));
-      border-radius:16px;
-      padding:12px;
-      cursor:pointer;
-      user-select:none;
+      border-radius:16px;padding:12px;cursor:pointer;user-select:none;
       transition: transform .08s ease, filter .08s ease;
       min-height:74px;
     }
@@ -116,112 +97,43 @@
     .tile span{display:block; font-size:12px; color:var(--muted); margin-top:2px}
     .tile.full{grid-column:1 / -1}
 
-    .list{
-      margin:6px 0 0 0;
-      padding:0;
-      list-style:none;
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-    }
-    .list li{
-      display:flex;
-      gap:10px;
-      align-items:flex-start;
-      color:var(--muted);
-      font-size:13px;
-    }
+    .list{margin:6px 0 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+    .list li{display:flex;gap:10px;align-items:flex-start;color:var(--muted);font-size:13px}
     .check{
       width:18px;height:18px;border-radius:7px;
       border:1px solid rgba(255,255,255,.18);
       background: rgba(255,255,255,.05);
       display:flex;align-items:center;justify-content:center;
-      color: var(--ok);
-      font-weight:900;
-      flex:0 0 auto;
-      margin-top:1px;
+      color: var(--ok);font-weight:900;flex:0 0 auto;margin-top:1px;
     }
 
-    .demoCard{
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.04);
-      border-radius:16px;
-      padding:12px;
-    }
+    .demoCard{border:1px solid rgba(255,255,255,.12);background: rgba(255,255,255,.04);border-radius:16px;padding:12px}
     .demoTitle{font-weight:800;margin:0 0 8px 0;font-size:13px}
     .demoSub{color:var(--muted);font-size:12px;margin:0 0 10px 0}
-    .demoCols{
-      display:grid;
-      grid-template-columns:1fr;
-      gap:10px;
-    }
-    .demoBox{
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:14px;
-      padding:10px 10px;
-      background: rgba(0,0,0,.14);
-    }
+    .demoBox{border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;background: rgba(0,0,0,.14);margin-top:10px}
     .demoBox b{display:block;font-size:12px;margin-bottom:6px}
-    .demoBox ul{margin:0;padding-left:16px;color:var(--muted);font-size:12.5px}
-    .miniActions{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      margin-top:10px;
-    }
+    .miniActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .chip{
       border:1px solid rgba(255,79,216,.35);
       background: rgba(255,79,216,.10);
-      padding:7px 10px;
-      border-radius:999px;
-      font-size:12px;
-      cursor:pointer;
-      user-select:none;
+      padding:7px 10px;border-radius:999px;font-size:12px;cursor:pointer;user-select:none;
     }
     .chip:hover{filter:brightness(1.08)}
-    .row{
-      display:flex;
-      gap:10px;
-      padding:12px;
-      border-top:1px solid var(--stroke);
-      background: rgba(0,0,0,.12);
-    }
+
+    .row{display:flex;gap:10px;padding:12px;border-top:1px solid var(--stroke);background: rgba(0,0,0,.12)}
     input{
-      flex:1;
-      padding:12px 12px;
-      border-radius:14px;
-      border:1px solid var(--stroke);
-      background: rgba(255,255,255,.04);
-      color: var(--text);
-      outline:none;
-      font-size:14px;
+      flex:1;padding:12px;border-radius:14px;border:1px solid var(--stroke);
+      background: rgba(255,255,255,.04);color: var(--text);outline:none;font-size:14px
     }
     input::placeholder{color:rgba(255,255,255,.45)}
     button{
-      padding:12px 14px;
-      border-radius:14px;
-      border:1px solid rgba(255,79,216,.35);
+      padding:12px 14px;border-radius:14px;border:1px solid rgba(255,79,216,.35);
       background: linear-gradient(90deg, rgba(255,79,216,.95), rgba(155,92,255,.95));
-      color:#fff;
-      font-weight:800;
-      cursor:pointer;
+      color:#fff;font-weight:800;cursor:pointer
     }
     button:disabled{opacity:.6; cursor:not-allowed}
-    .foot{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
-      padding:10px 12px 12px 12px;
-      color:rgba(255,255,255,.55);
-      font-size:11px;
-    }
-    .pill{
-      border:1px solid var(--stroke);
-      padding:6px 10px;
-      border-radius:999px;
-      background: rgba(255,255,255,.04);
-    }
+    .foot{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px 12px;color:rgba(255,255,255,.55);font-size:11px}
+    .pill{border:1px solid var(--stroke);padding:6px 10px;border-radius:999px;background: rgba(255,255,255,.04)}
   </style>
 </head>
 <body>
@@ -251,19 +163,18 @@
 </div>
 
 <script>
-/* ================== CONFIG ================== */
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-/* ================== THREAD MEMORY ================== */
+/* THREAD */
 const THREAD_KEY = "sales_chatbot_thread_id";
 const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
 const setThreadId = id => id && localStorage.setItem(THREAD_KEY, id);
 const resetThread = () => localStorage.removeItem(THREAD_KEY);
 
-/* ================== DEMO STATE ================== */
-const STATE_KEY = "sales_demo_state_v1";
+/* STATE */
+const STATE_KEY = "sales_demo_state_v2";
 const defaultState = () => ({
-  mode: "menu",      // menu | url | chat
+  mode: "menu",       // menu | url | chat
   url: "",
   urlSaved: false,
   demoShown: false,
@@ -273,22 +184,18 @@ let state = loadState();
 function loadState(){
   try{
     const s = JSON.parse(localStorage.getItem(STATE_KEY) || "null");
-    if (!s || typeof s !== "object") return defaultState();
+    if(!s || typeof s !== "object") return defaultState();
     return { ...defaultState(), ...s };
-  }catch{
-    return defaultState();
-  }
+  }catch{ return defaultState(); }
 }
-function saveState(){
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
-}
+function saveState(){ localStorage.setItem(STATE_KEY, JSON.stringify(state)); }
 function resetState(){
   state = defaultState();
   localStorage.removeItem(STATE_KEY);
   setMode("menu");
 }
 
-/* ================== UI HELPERS ================== */
+/* UI */
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
@@ -297,132 +204,74 @@ const modeBadge = document.getElementById("modeBadge");
 
 function setStatus(t){ statusEl.textContent = t; }
 function setMode(m){
-  state.mode = m;
-  saveState();
+  state.mode = m; saveState();
   modeBadge.textContent = m;
-  if (m === "url") input.placeholder = "www.vas-web.cz";
-  else input.placeholder = "Napište zprávu…";
+  input.placeholder = (m==="url") ? "www.vas-web.cz" : "Napište zprávu…";
+}
+function scrollBottom(){
+  // Safari občas ignoruje okamžitý scroll → dáme to dvakrát
+  requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; });
+  setTimeout(()=>{ chat.scrollTop = chat.scrollHeight; }, 60);
 }
 function add(role, htmlOrText, asHtml=false){
   const d = document.createElement("div");
-  d.className = "msg " + (role === "user" ? "user" : "bot");
-  if (asHtml) d.innerHTML = htmlOrText;
+  d.className = "msg " + (role==="user" ? "user" : "bot");
+  if(asHtml) d.innerHTML = htmlOrText;
   else d.textContent = htmlOrText;
   chat.appendChild(d);
-  chat.scrollTop = chat.scrollHeight;
+  scrollBottom();
 }
 function addHint(text){
   const p = document.createElement("div");
   p.className = "hint";
   p.textContent = text;
   chat.appendChild(p);
-  chat.scrollTop = chat.scrollHeight;
+  scrollBottom();
 }
 
-/* ================== BACKEND CALLS ================== */
+/* BACKEND */
 async function askBot(text){
   const r = await fetch("/.netlify/functions/search",{
     method:"POST",
     headers:{ "content-type":"application/json" },
-    body:JSON.stringify({
-      message:text,
-      thread_id:getThreadId()
-    })
+    body:JSON.stringify({ message:text, thread_id:getThreadId() })
   });
-  const d = await r.json().catch(() => ({}));
+  const d = await r.json().catch(()=>({}));
   if(d.thread_id) setThreadId(d.thread_id);
   if(!d.ok) throw (d.error || "search failed");
   return d.answer || "";
 }
-
 async function saveUrlToSheets(url){
-  const payload = {
-    name: "",
-    phone: "",
-    email: "",
-    message: `Ukázka | URL: ${url} | Source: widget`
-  };
-
+  const payload = { name:"", phone:"", email:"", message:`Ukázka | URL: ${url} | Source: widget` };
   const r = await fetch("/.netlify/functions/lead",{
     method:"POST",
     headers:{ "content-type":"application/json" },
     body:JSON.stringify(payload)
   });
-
   const txt = await r.text();
-  return { ok: r.ok, raw: txt };
+  return { ok:r.ok, raw:txt };
 }
 
-/* ================== URL HELPERS ================== */
+/* URL helpers */
 function normalizeUrl(u){
-  let s = String(u || "").trim();
-  if (!s) return "";
-  s = s.replace(/\s+/g, "");
-  if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+  let s = String(u||"").trim().replace(/\s+/g,"");
+  if(!s) return "";
+  if(!/^https?:\/\//i.test(s)) s = "https://" + s;
   return s;
 }
 function looksValidUrl(u){
-  const s = String(u || "").trim();
-  if (!s) return false;
-  if (s.length < 6) return false;
-  if (/\s/.test(s)) return false;
-  if (!s.includes(".")) return false;
-  return true;
+  const s = String(u||"").trim();
+  return !!(s && s.length>=6 && !/\s/.test(s) && s.includes("."));
 }
 function prettyDomain(url){
   return String(url).replace(/^https?:\/\//i,"").replace(/\/+$/,"");
 }
 
-/* ================== MINI DEMO (OKAMŽITÁ UKÁZKA) ================== */
-function guessUseCaseFromDomain(domain){
-  const d = domain.toLowerCase();
-  // pár jednoduchých heuristik (kdykoliv rozšíříme)
-  if (d.includes("shop") || d.includes("store") || d.includes("eshop")) return "eshop";
-  if (d.includes("hotel") || d.includes("penzion") || d.includes("apart")) return "ubytovani";
-  if (d.includes("auto") || d.includes("servis")) return "autoservis";
-  if (d.includes("realit")) return "reality";
-  // default: služby / řemeslo / firma
-  return "sluzby";
-}
-
-function demoContent(useCase){
-  if (useCase === "eshop"){
-    return {
-      title: "Mini ukázka pro e-shop",
-      bullets: [
-        "Zodpoví dotazy k doručení, platbě a vrácení zboží",
-        "Doporučí produkt podle potřeb (1–2 otázky)",
-        "Pohlídá dostupnost / varianty a pošle odkaz na produkt"
-      ],
-      qas: [
-        {q:"Jak dlouho trvá doručení?", a:"Doručení bývá obvykle 1–3 pracovní dny (upřesníme podle dopravy)."},
-        {q:"Jak funguje vrácení zboží?", a:"Jednoduše – pošlete číslo objednávky a chatbot vás provede postupem."},
-        {q:"Máte to ve velikosti M?", a:"Chatbot ověří dostupnost a rovnou pošle správný odkaz na variantu."},
-      ],
-      flow: ["Co hledáte / pro koho?", "Preferovaná cena / parametry", "Kontakt (pokud chce pomoc)"]
-    };
-  }
-
-  if (useCase === "ubytovani"){
-    return {
-      title: "Mini ukázka pro ubytování",
-      bullets: [
-        "Odpoví na dostupnost a ceny",
-        "Sběr rezervace (datum, osoby, kontakt)",
-        "FAQ: parkování, snídaně, check-in/out"
-      ],
-      qas: [
-        {q:"Máte volno příští víkend?", a:"Chatbot si řekne o datum a počet osob a nabídne možnosti."},
-        {q:"Je u vás parkování?", a:"Odpoví podle vašich pravidel (parkování zdarma / placené / kapacita)."},
-        {q:"Kdy je check-in?", a:"Chatbot sdělí časy check-in/out a doplní instrukce."},
-      ],
-      flow: ["Termín + počet osob", "Typ pokoje / požadavky", "Kontakt pro potvrzení"]
-    };
-  }
-
-  // default: služby / řemeslo
+/* MINI DEMO */
+function demoContent(){
+  // jednoduchý univerzál (později to uděláme víc „na míru“ podle oboru)
   return {
-    title: "Mini ukázka pro služby / firmu",
+    title: "Mini ukázka (okamžitý náhled)",
     bullets: [
       "Odpovídá na časté dotazy (cena, termín, postup)",
       "Kvalifikuje zájemce (co přesně potřebuje, kde, kdy)",
@@ -437,44 +286,41 @@ function demoContent(useCase){
   };
 }
 
-function renderDemoPreview(url){
-  const domain = prettyDomain(url);
-  const useCase = guessUseCaseFromDomain(domain);
-  const c = demoContent(useCase);
+function renderDemoPreview(){
+  if(!state.url) {
+    add("bot","Nejdřív prosím zadejte URL webu (Získat ukázku zdarma).");
+    return;
+  }
 
+  const domain = prettyDomain(state.url);
+  const c = demoContent();
+
+  const bulletsHtml = c.bullets.map(t => `<li><span class="check">✓</span><span>${t}</span></li>`).join("");
   const qaHtml = c.qas.map(x => `
-    <li style="margin-bottom:8px">
+    <li style="margin-bottom:10px">
       <b style="display:block;color:rgba(255,255,255,.90);font-size:12px;margin-bottom:2px">❓ ${x.q}</b>
       <span style="color:rgba(255,255,255,.68);font-size:12.5px">💬 ${x.a}</span>
-    </li>
-  `).join("");
-
-  const bulletsHtml = c.bullets.map(t => `
-    <li><span class="check">✓</span><span>${t}</span></li>
-  `).join("");
-
+    </li>`).join("");
   const flowHtml = c.flow.map(s => `<li>${s}</li>`).join("");
 
   const html = `
     <div class="demoCard">
       <div class="demoTitle">Ukázka pro web: ${domain}</div>
-      <div class="demoSub">${c.title} (okamžitý náhled)</div>
+      <div class="demoSub">${c.title}</div>
 
-      <div class="demoCols">
-        <div class="demoBox">
-          <b>Co by chatbot u vás dělal</b>
-          <ul class="list">${bulletsHtml}</ul>
-        </div>
+      <div class="demoBox">
+        <b>Co by chatbot u vás dělal</b>
+        <ul class="list">${bulletsHtml}</ul>
+      </div>
 
-        <div class="demoBox">
-          <b>3 příklady dotazů a odpovědí</b>
-          <ul style="margin:0;padding-left:16px">${qaHtml}</ul>
-        </div>
+      <div class="demoBox">
+        <b>3 příklady dotazů a odpovědí</b>
+        <ul style="margin:0;padding-left:16px">${qaHtml}</ul>
+      </div>
 
-        <div class="demoBox">
-          <b>Ukázka sběru poptávky (flow)</b>
-          <ul style="margin:0;padding-left:16px;color:rgba(255,255,255,.68);font-size:12.5px">${flowHtml}</ul>
-        </div>
+      <div class="demoBox">
+        <b>Ukázka sběru poptávky (flow)</b>
+        <ul style="margin:0;padding-left:16px;color:rgba(255,255,255,.68);font-size:12.5px">${flowHtml}</ul>
       </div>
 
       <div class="miniActions">
@@ -487,38 +333,38 @@ function renderDemoPreview(url){
 
   add("bot", html, true);
 
-  // click actions
   const last = chat.lastElementChild;
   last.querySelectorAll("[data-demo]").forEach(el=>{
     el.addEventListener("click", ()=>handleDemoChip(el.dataset.demo));
   });
 
-  // jedna přirozená otázka po ukázce
-  add("bot","Chcete ukázat ještě variantu pro zákaznickou podporu, nebo se chcete na něco zeptat?");
   state.demoShown = true;
   saveState();
+
+  add("bot","Chcete ukázat ještě variantu pro zákaznickou podporu, nebo se chcete na něco zeptat?");
 }
 
 function handleDemoChip(which){
-  if (which === "support"){
-    add("bot","Jasně — pro zákaznickou podporu chatbot typicky řeší FAQ, návody, reklamace a navigaci po webu. Napište, co nejčastěji zákazníci řeší, a ukážu příklady odpovědí.");
+  if(which==="support"){
+    add("bot","Jasně — napište, jaké dotazy řešíte nejčastěji v podpoře (reklamace, návody, objednávky…) a ukážu příklady odpovědí.");
     setMode("chat");
     return;
   }
-  if (which === "sales"){
-    add("bot","Pro sběr poptávek chatbot klade 2–4 krátké otázky a vyfiltruje relevantní zájemce. Napište, jakou službu / produkt chcete nejvíc prodávat, a navrhnu flow.");
+  if(which==="sales"){
+    add("bot","Pro sběr poptávek: napište, jakou službu / produkt chcete nejvíc prodávat, a navrhnu krátký poptávkový flow.");
     setMode("chat");
     return;
   }
-  if (which === "ask"){
+  if(which==="ask"){
     setMode("chat");
     add("bot","Jasně — zeptejte se. 🙂");
     return;
   }
 }
 
-/* ================== MENU CARDS ================== */
+/* MENU */
 function renderMenu(){
+  const hasUrl = !!(state.urlSaved && state.url);
   const html = `
     <div><b>Naše chatboty využívají firmy napříč obory.</b><br><span style="color:rgba(255,255,255,.68)">Vyberte, co chcete udělat:</span></div>
     <div class="grid" style="margin-top:10px">
@@ -531,6 +377,11 @@ function renderMenu(){
       <div class="tile full" data-action="ask">
         <div class="k"><div class="ico">?</div><div><b>Zeptejte se AI</b><span>Napište libovolný dotaz</span></div></div>
       </div>
+      ${hasUrl ? `
+      <div class="tile full" data-action="show_demo">
+        <div class="k"><div class="ico">✓</div><div><b>Zobrazit ukázku pro uložené URL</b><span>${prettyDomain(state.url)}</span></div></div>
+      </div>
+      ` : ``}
     </div>
   `;
   add("bot", html, true);
@@ -545,7 +396,6 @@ function renderCapabilities(){
   const html = `
     <div><b>Chatbot je multifunkční nástroj pro podporu prodeje i zákaznické podpory.</b><br>
     <span style="color:rgba(255,255,255,.68)">Podívejte se, co všechno zvládne:</span></div>
-
     <ul class="list">
       <li><span class="check">✓</span><span>Odpovídá na dotazy (FAQ, produkty, služby)</span></li>
       <li><span class="check">✓</span><span>Sbírá poptávky a kvalifikuje zájemce</span></li>
@@ -553,52 +403,41 @@ function renderCapabilities(){
       <li><span class="check">✓</span><span>Doporučí službu / produkt podle potřeb</span></li>
       <li><span class="check">✓</span><span>Umí se učit z podkladů firmy (knowledge base)</span></li>
     </ul>
-
-    <div class="grid" style="margin-top:10px">
-      <div class="tile" data-action="demo">
-        <div class="k"><div class="ico">▶</div><div><b>Získat ukázku zdarma</b><span>Zadáte URL webu</span></div></div>
-      </div>
-      <div class="tile" data-action="ask">
-        <div class="k"><div class="ico">?</div><div><b>Zeptejte se AI</b><span>Na cokoliv</span></div></div>
-      </div>
-    </div>
   `;
   add("bot", html, true);
-
-  const last = chat.lastElementChild;
-  last.querySelectorAll("[data-action]").forEach(el=>{
-    el.addEventListener("click", ()=>handleMenuAction(el.dataset.action));
-  });
 }
 
-async function handleMenuAction(action){
-  if (action === "demo"){
+function handleMenuAction(action){
+  if(action==="demo"){
     setMode("url");
-    add("bot", "Ukázku připravíme přímo pro váš web. Jaké jsou vaše stránky?");
+    add("bot","Ukázku připravíme přímo pro váš web. Jaké jsou vaše stránky?");
     addHint("Tip: stačí doména (např. muj-web.cz).");
     input.focus();
     return;
   }
-  if (action === "what"){
-    renderCapabilities();
-    return;
-  }
-  if (action === "ask"){
+  if(action==="what"){ renderCapabilities(); return; }
+  if(action==="ask"){ setMode("chat"); add("bot","Jasně — zeptejte se. 🙂"); input.focus(); return; }
+  if(action==="show_demo"){
+    // ✅ vždy zobraz ukázku lokálně
     setMode("chat");
-    add("bot", "Jasně — zeptejte se. 🙂");
-    input.focus();
+    renderDemoPreview();
     return;
   }
 }
 
-/* ================== SEND ================== */
+/* LOCAL INTENTS (aby AI „neignorovalo ukázku“) */
+function isAskingForDemo(text){
+  const t = String(text||"").toLowerCase();
+  return t.includes("uka") && (t.includes("ukazk") || t.includes("ukázk") || t.includes("nahled") || t.includes("náhled"));
+}
+
+/* SEND */
 async function send(){
   const t = input.value.trim();
-  if (!t) return;
+  if(!t) return;
 
-  if (t.toLowerCase() === "reset"){
-    resetThread();
-    resetState();
+  if(t.toLowerCase()==="reset"){
+    resetThread(); resetState();
     chat.innerHTML = "";
     init();
     input.value = "";
@@ -612,22 +451,28 @@ async function send(){
   try{
     setStatus("pracují…");
 
-    // URL mode
-    if (state.mode === "url"){
-      if (!looksValidUrl(t)){
-        add("bot", "Tohle nevypadá jako URL. Zkuste prosím třeba „muj-web.cz“ nebo „www.muj-web.cz“.");
+    // ✅ pokud user píše "ukaž ukázku" → řeš lokálně, ne přes AI
+    if(isAskingForDemo(t) && state.urlSaved && state.url){
+      setMode("chat");
+      renderDemoPreview();
+      setStatus("připraveno");
+      return;
+    }
+
+    if(state.mode==="url"){
+      if(!looksValidUrl(t)){
+        add("bot","Tohle nevypadá jako URL. Zkuste prosím třeba „muj-web.cz“ nebo „www.muj-web.cz“.");
         setStatus("čekám na URL");
         return;
       }
-
       const url = normalizeUrl(t);
       state.url = url;
       saveState();
 
       const r = await saveUrlToSheets(url);
-      if (!r.ok){
-        if (DEBUG) add("bot", "Chyba ukládání do Sheets:\n" + r.raw);
-        add("bot", "Omlouvám se, nepodařilo se to uložit. Zkuste to prosím znovu.");
+      if(!r.ok){
+        if(DEBUG) add("bot","Chyba ukládání do Sheets:\n"+r.raw);
+        add("bot","Omlouvám se, nepodařilo se to uložit. Zkuste to prosím znovu.");
         setStatus("chyba ukládání");
         return;
       }
@@ -635,38 +480,25 @@ async function send(){
       state.urlSaved = true;
       saveState();
 
-      add("bot", "Děkuji — URL mám uložené. ✅");
+      add("bot","Děkuji — URL mám uložené. ✅");
 
-      // ✅ NOVÉ: okamžitě zobraz mini ukázku
-      renderDemoPreview(url);
-
-      // přepneme do volného chatu
+      // ✅ vždy ukázku rovnou zobraz + scroll
       setMode("chat");
+      renderDemoPreview();
+
       setStatus("připraveno");
       return;
     }
 
-    // Free chat mode (AI)
-    if (state.mode === "chat"){
-      const ans = await askBot(t);
-      add("bot", ans);
-      setStatus("připraveno");
-      return;
-    }
-
-    // Menu mode (user typed without clicking)
-    if (state.mode === "menu"){
-      setMode("chat");
-      const ans = await askBot(t);
-      add("bot", ans);
-      setStatus("připraveno");
-      return;
-    }
-
+    // chat/menu → AI odpověď
+    setMode("chat");
+    const ans = await askBot(t);
+    add("bot", ans);
     setStatus("připraveno");
+
   }catch(e){
-    if (DEBUG) add("bot", "❌ Chyba:\n" + String(e));
-    add("bot", "Omlouvám se, něco se nepovedlo. Zkuste to prosím znovu.");
+    if(DEBUG) add("bot","❌ Chyba:\n"+String(e));
+    add("bot","Omlouvám se, něco se nepovedlo. Zkuste to prosím znovu.");
     setStatus("chyba");
   }finally{
     sendBtn.disabled = false;
@@ -674,28 +506,20 @@ async function send(){
   }
 }
 
-/* ================== EVENTS ================== */
-document.getElementById("send").onclick = send;
-document.getElementById("input").addEventListener("keydown", e => {
-  if (e.key === "Enter") send();
-});
+/* EVENTS */
+sendBtn.onclick = send;
+input.addEventListener("keydown", e => (e.key==="Enter") && send());
 
-/* ================== INIT ================== */
+/* INIT */
 function init(){
   setStatus("připraveno");
-
-  if (state.urlSaved && state.url){
-    setMode("menu");
-    add("bot", `Vítejte zpět 👋 Máte uložené URL: ${prettyDomain(state.url)}`);
-    if (!state.demoShown){
-      add("bot","Chcete rovnou ukázku, nebo se chcete na něco zeptat?");
-    }
-    renderMenu();
-    return;
-  }
-
   setMode("menu");
-  add("bot", "Dobrý den 👋");
+
+  if(state.urlSaved && state.url){
+    add("bot", `Vítejte zpět 👋 Máte uložené URL: ${prettyDomain(state.url)}`);
+  } else {
+    add("bot","Dobrý den 👋");
+  }
   renderMenu();
 }
 init();

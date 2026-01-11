@@ -1,10 +1,12 @@
+// netlify/functions/siteinfo.js
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-function resp(statusCode, obj) {
+function json(statusCode, obj) {
   return {
     statusCode,
     headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
@@ -19,68 +21,14 @@ function normalizeUrl(input) {
   let u = raw;
   if (!/^https?:\/\//i.test(u)) u = "https://" + u;
 
-  let parsed;
-  try {
-    parsed = new URL(u);
-  } catch {
-    throw new Error("URL is not valid");
-  }
-
+  const parsed = new URL(u);
   parsed.hash = "";
   return parsed.toString();
 }
 
-function decodeEntities(s) {
-  return (s || "")
-    .replaceAll("&nbsp;", " ")
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'");
-}
-
-function stripTags(s) {
-  return (s || "").replace(/<[^>]*>/g, " ");
-}
-
-function pickTitle(html) {
-  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  return m ? decodeEntities(m[1]).trim().slice(0, 140) : "";
-}
-
-function pickMetaDescription(html) {
-  const m =
-    html.match(/<meta[^>]+name=["']description["'][^>]*>/i) ||
-    html.match(/<meta[^>]+property=["']og:description["'][^>]*>/i);
-
-  if (!m) return "";
-  const tag = m[0];
-  const c = tag.match(/content=["']([^"']+)["']/i);
-  return c ? decodeEntities(c[1]).trim().slice(0, 320) : "";
-}
-
-function pickH1(html) {
-  const m = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  return m ? decodeEntities(stripTags(m[1])).trim().slice(0, 180) : "";
-}
-
-function cleanText(html) {
-  let t = html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
-    .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
-    .replace(/<[^>]*>/g, " ");
-
-  t = decodeEntities(t);
-  t = t.replace(/\s+/g, " ").trim();
-  return t.slice(0, 7000);
-}
-
 function guessCompanyName(url, title) {
   try {
-    if (title) return title.split("|")[0].split("-")[0].trim().slice(0, 50);
+    if (title) return title.split("|")[0].split("-")[0].trim().slice(0, 60);
     const host = new URL(url).hostname.replace(/^www\./, "");
     const base = host.split(".")[0];
     return base.charAt(0).toUpperCase() + base.slice(1);
@@ -89,26 +37,47 @@ function guessCompanyName(url, title) {
   }
 }
 
+function clip(s, n) {
+  return (s || "").toString().slice(0, n);
+}
+
+function cleanupText(s) {
+  return (s || "")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 async function fetchWithTimeout(url, ms) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), ms);
-
   try {
-    const res = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      signal: controller.signal,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; DemoSiteInfo/1.0; +https://example.com)",
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
-    const html = await res.text();
-    return { res, html };
+    const res = await fetch(url, { signal: controller.signal });
+    const text = await res.text();
+    return { res, text };
   } finally {
     clearTimeout(t);
   }
+}
+
+// r.jina.ai umí:
+// https://r.jina.ai/http://example.com
+// https://r.jina.ai/https://example.com
+function toJina(url) {
+  const u = new URL(url);
+  return `https://r.jina.ai/${u.protocol}//${u.host}${u.pathname}${u.search}`;
+}
+
+function extractTitle(markdownText) {
+  // jina často vrací něco jako "# Title" na začátku
+  const lines = (markdownText || "").split("\n").map((x) => x.trim());
+  const h1 = lines.find((l) => l.startsWith("# "));
+  if (h1) return h1.replace(/^#\s+/, "").trim().slice(0, 140);
+
+  // fallback: první neprázdný řádek
+  const first = lines.find((l) => l.length > 3);
+  return (first || "").slice(0, 140);
 }
 
 exports.handler = async (event) => {
@@ -116,66 +85,55 @@ exports.handler = async (event) => {
     return { statusCode: 204, headers: corsHeaders, body: "" };
   }
 
-  if (event.httpMethod !== "POST") {
-    return resp(405, { ok: false, error: "Method not allowed" });
-  }
-
   try {
-    const body = JSON.parse(event.body || "{}");
-    const normalized = normalizeUrl(body.url);
-
-    // 1) pokus: normal
-    let out;
-    try {
-      out = await fetchWithTimeout(normalized, 12000);
-    } catch (e) {
-      // 2) fallback: když je https problém, zkus http (některé weby to divně přesměrují)
-      const tryHttp = normalized.replace(/^https:\/\//i, "http://");
-      out = await fetchWithTimeout(tryHttp, 12000);
+    // umožníme i GET pro rychlý test:
+    // /.netlify/functions/siteinfo?url=https://...
+    let inputUrl = "";
+    if (event.httpMethod === "GET") {
+      const qs = event.queryStringParameters || {};
+      inputUrl = qs.url || "";
+    } else if (event.httpMethod === "POST") {
+      const body = JSON.parse(event.body || "{}");
+      inputUrl = body.url || "";
+    } else {
+      return json(405, { ok: false, error: "Method not allowed" });
     }
 
-    const { res, html } = out;
+    const normalized = normalizeUrl(inputUrl);
+    const jinaUrl = toJina(normalized);
+
+    // Timeout trošku větší – jina bývá rychlá
+    const { res, text } = await fetchWithTimeout(jinaUrl, 20000);
 
     if (!res.ok) {
-      return resp(502, {
+      return json(502, {
         ok: false,
-        error: "Site returned non-OK status",
+        error: "Failed to load via jina",
         details: { status: res.status, statusText: res.statusText },
       });
     }
 
-    const clipped = html.slice(0, 250000);
+    const cleaned = cleanupText(text);
 
-    const title = pickTitle(clipped);
-    const desc = pickMetaDescription(clipped);
-    const h1 = pickH1(clipped);
-    const text = cleanText(clipped);
+    // Z toho uděláme krátký „site_context“ pro demo asistenta (tokenově)
+    const title = extractTitle(cleaned);
+    const companyName = guessCompanyName(normalized, title);
 
-    const summary = [
-      title ? `Title: ${title}` : "",
-      desc ? `Popis: ${desc}` : "",
-      h1 ? `H1: ${h1}` : "",
-      text ? `Text: ${text.slice(0, 2800)}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    // Konkrétní „shrnutí“ (hlava + výcuc textu)
+    const summary =
+      `URL: ${normalized}\n` +
+      (title ? `Název: ${title}\n` : "") +
+      `Obsah webu (výcuc):\n` +
+      clip(cleaned, 6000);
 
-    const companyName = guessCompanyName(res.url || normalized, title);
-
-    return resp(200, {
+    return json(200, {
       ok: true,
-      url: res.url || normalized,
+      url: normalized,
       companyName,
       title: title || "",
-      description: desc || "",
-      h1: h1 || "",
-      summary,
+      summary, // <- tohle posílej do search.mjs jako site_context
     });
   } catch (e) {
-    return resp(500, {
-      ok: false,
-      error: "Failed to fetch site",
-      details: String(e?.message || e),
-    });
+    return json(500, { ok: false, error: "Failed to fetch site", details: String(e?.message || e) });
   }
 };

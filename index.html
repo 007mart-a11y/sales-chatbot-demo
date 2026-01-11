@@ -2,338 +2,714 @@
 <html lang="cs">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sales chatbot demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Chatbot – demo</title>
   <style>
-    :root { color-scheme: dark; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b1020; color:#e9eeff; }
-    .wrap { max-width: 980px; margin: 0 auto; padding: 22px; }
-    .card { background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); border-radius: 16px; padding: 16px; }
-    .row { display:flex; gap: 12px; flex-wrap:wrap; align-items:center; }
-    .btn { cursor:pointer; border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color:#e9eeff; padding: 10px 12px; border-radius: 999px; }
-    .btn.primary { background: linear-gradient(90deg, #7c3aed, #22c55e); border:0; }
-    .btn.active { outline: 2px solid rgba(124,58,237,0.7); }
-    .muted { color: rgba(233,238,255,0.75); }
-    .banner { padding: 14px; border-radius: 14px; background: rgba(124,58,237,0.18); border:1px solid rgba(124,58,237,0.35); }
-    .banner.good { background: rgba(34,197,94,0.14); border-color: rgba(34,197,94,0.35); }
-    .chat { margin-top: 14px; display:flex; flex-direction:column; gap: 10px; }
-    .msg { max-width: 78ch; padding: 12px 14px; border-radius: 14px; border:1px solid rgba(255,255,255,0.10); }
-    .msg.user { align-self:flex-end; background: rgba(255,255,255,0.06); }
-    .msg.bot { align-self:flex-start; background: rgba(0,0,0,0.18); }
-    .msg.sys { align-self:stretch; background: rgba(255,255,255,0.03); border-style:dashed; }
-    .composer { margin-top: 12px; display:flex; gap: 10px; }
-    input[type="text"], input[type="url"], input[type="tel"], input[type="email"] {
-      width: 100%; padding: 12px 12px; border-radius: 12px; border:1px solid rgba(255,255,255,0.14);
-      background: rgba(0,0,0,0.25); color:#e9eeff;
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1b31;
+      --panel2:#0c172b;
+      --border:rgba(255,255,255,.10);
+      --text:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.65);
+      --accent:#7c3aed;
+      --accent2:#22c55e;
+      --danger:#ef4444;
     }
-    .split { display:grid; grid-template-columns: 1.2fr 0.8fr; gap: 14px; margin-top: 14px; }
-    @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
-    .formgrid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    @media (max-width: 700px) { .formgrid { grid-template-columns: 1fr; } }
-    .hr { height:1px; background: rgba(255,255,255,0.10); margin: 12px 0; }
-    .small { font-size: 13px; }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background: radial-gradient(1200px 800px at 20% 10%, rgba(124,58,237,.20), transparent 60%),
+                  radial-gradient(900px 600px at 80% 30%, rgba(34,197,94,.12), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+    }
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:18px;
+    }
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:14px;
+    }
+    header .title{
+      font-weight:800;
+      letter-spacing:.2px;
+      font-size:18px;
+      line-height:1.2;
+    }
+    header .sub{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:4px;
+    }
+    .modeTabs{
+      display:flex;
+      gap:10px;
+    }
+    .btn{
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:999px;
+      cursor:pointer;
+      font-weight:700;
+      font-size:13px;
+      transition:.15s ease;
+      user-select:none;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn.primary{
+      border-color:transparent;
+      background:linear-gradient(90deg, var(--accent), #a855f7);
+    }
+    .btn.good{
+      border-color:transparent;
+      background:linear-gradient(90deg, var(--accent2), #16a34a);
+    }
+    .btn.ghost{
+      background:transparent;
+    }
+    .btn.active{
+      outline:2px solid rgba(124,58,237,.35);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr; }
+    }
+
+    .card{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--border);
+      border-radius:16px;
+      overflow:hidden;
+    }
+    .cardHead{
+      padding:12px 14px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      background:rgba(255,255,255,.02);
+    }
+    .cardHead .h{
+      font-weight:800;
+      font-size:13px;
+    }
+    .cardBody{
+      padding:12px 14px;
+    }
+
+    .banner{
+      border:1px solid rgba(34,197,94,.35);
+      background:rgba(34,197,94,.10);
+      padding:12px 12px;
+      border-radius:14px;
+      margin-bottom:10px;
+    }
+    .banner .bTitle{
+      font-weight:900;
+      margin-bottom:6px;
+    }
+    .banner .bText{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.35;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.03);
+      font-weight:800;
+      font-size:12px;
+      margin-top:8px;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:99px;background:var(--accent2);
+      box-shadow:0 0 0 3px rgba(34,197,94,.18);
+    }
+
+    .urlRow{
+      display:flex;
+      gap:10px;
+      margin-bottom:10px;
+    }
+    input[type="text"], input[type="email"], input[type="tel"]{
+      width:100%;
+      padding:12px 12px;
+      border-radius:12px;
+      background:rgba(0,0,0,.22);
+      color:var(--text);
+      border:1px solid var(--border);
+      outline:none;
+    }
+    input::placeholder{color:rgba(255,255,255,.45)}
+    .help{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    /* Chat */
+    .chat{
+      height:420px;
+      overflow:auto;
+      padding:10px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.18);
+      border-radius:14px;
+    }
+    .msg{
+      max-width:86%;
+      padding:10px 12px;
+      border-radius:14px;
+      margin:8px 0;
+      line-height:1.35;
+      font-size:14px;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    .msg.user{
+      margin-left:auto;
+      background:rgba(124,58,237,.25);
+      border:1px solid rgba(124,58,237,.35);
+    }
+    .msg.bot{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+    }
+    .msg.sys{
+      margin-left:auto;
+      margin-right:auto;
+      max-width:100%;
+      text-align:center;
+      color:rgba(255,255,255,.70);
+      background:rgba(255,255,255,.03);
+      border:1px dashed rgba(255,255,255,.14);
+      font-size:12px;
+    }
+    .composer{
+      display:flex;
+      gap:10px;
+      margin-top:10px;
+    }
+    .composer textarea{
+      width:100%;
+      min-height:44px;
+      max-height:120px;
+      resize:vertical;
+      padding:10px 12px;
+      border-radius:12px;
+      background:rgba(0,0,0,.22);
+      color:var(--text);
+      border:1px solid var(--border);
+      outline:none;
+      font-family:inherit;
+    }
+
+    /* CTA strip (appears after N msgs) */
+    .ctaStrip{
+      display:none;
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(124,58,237,.35);
+      background:rgba(124,58,237,.12);
+      cursor:pointer;
+      user-select:none;
+    }
+    .ctaStrip strong{display:block}
+    .ctaStrip span{color:var(--muted); font-size:12px}
+
+    /* Slide form */
+    .formPanel{
+      display:none;
+      margin-top:10px;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.18);
+    }
+    .formGrid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+    .formGrid .full{grid-column:1/-1}
+    .checkRow{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+      margin-top:8px;
+    }
+
+    .loaderRow{
+      display:none;
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(34,197,94,.30);
+      background:rgba(34,197,94,.08);
+      color:rgba(255,255,255,.85);
+      font-size:13px;
+    }
+    .spinner{
+      display:inline-block;
+      width:14px;height:14px;
+      border:2px solid rgba(255,255,255,.25);
+      border-top-color:rgba(255,255,255,.90);
+      border-radius:50%;
+      animation: spin .8s linear infinite;
+      vertical-align:-2px;
+      margin-right:8px;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
+
 <body>
   <div class="wrap">
-    <div class="row" style="justify-content:space-between;">
+    <header>
       <div>
-        <div style="font-weight:700; font-size:18px;">AI Chatbot – demo</div>
-        <div class="muted small">DEMO režim (ukázka) + HLAVNÍ režim (plná verze / sales)</div>
+        <div class="title">AI Chatbot – demo</div>
+        <div class="sub">DEMO režim (ukázka) + HLAVNÍ režim (plná verze / sales)</div>
       </div>
-      <div class="row">
-        <button id="modeDemo" class="btn active" type="button">DEMO asistent</button>
-        <button id="modeSales" class="btn" type="button">HLAVNÍ asistent</button>
+      <div class="modeTabs">
+        <button id="btnDemo" class="btn active">DEMO asistent</button>
+        <button id="btnMain" class="btn ghost">HLAVNÍ asistent</button>
       </div>
-    </div>
+    </header>
 
-    <div class="split">
+    <div class="grid">
+      <!-- LEFT: demo builder + chat -->
       <div class="card">
-        <div id="banner" class="banner">
-          Zadejte URL webu a připravím personalizovanou demo ukázku.
+        <div class="cardHead">
+          <div class="h">DEMO ukázka pro web</div>
+          <div style="display:flex; gap:10px; align-items:center">
+            <button id="btnReset" class="btn ghost">Reset</button>
+          </div>
         </div>
+        <div class="cardBody">
+          <div id="demoBanner" class="banner" style="display:none">
+            <div class="bTitle" id="demoBannerTitle"></div>
+            <div class="bText" id="demoBannerText"></div>
+            <div class="pill"><span class="dot"></span><span id="demoBannerPill">DEMO připravené</span></div>
+          </div>
 
-        <div class="hr"></div>
+          <div class="urlRow">
+            <input id="urlInput" type="text" placeholder="Zadejte URL webu (např. dachmantechnik.cz)" />
+            <button id="btnCreateDemo" class="btn primary">Vytvořit demo</button>
+          </div>
+          <div class="help">
+            Zadáte web → já připravím rychlou ukázku chatbota „jako pro vaše zákazníky“.
+            Plná verze umí doplnit detaily, procesy a fungovat 24/7 přesně podle vašich pravidel.
+          </div>
 
-        <div class="row">
-          <input id="siteUrl" type="url" placeholder="https://www.vas-web.cz" />
-          <button id="buildBtn" class="btn primary" type="button">Vytvořit demo</button>
-        </div>
-        <div class="muted small" style="margin-top:8px;">
-          Pozn.: Demo je rychlá ukázka. Plná verze umí znát detaily vaší firmy (služby, ceny, termíny, postupy…) a dá se doladit na míru.
-        </div>
+          <div id="loaderRow" class="loaderRow">
+            <span class="spinner"></span>
+            <span id="loaderText">Připravuji pro vaši firmu AI chatbota na ukázku…</span>
+          </div>
 
-        <div id="chat" class="chat"></div>
+          <div style="height:12px"></div>
 
-        <div class="composer">
-          <input id="msgInput" type="text" placeholder="Napište dotaz..." />
-          <button id="sendBtn" class="btn primary" type="button">Odeslat</button>
-        </div>
-        <div id="loading" class="muted small" style="margin-top:8px; display:none;">
-          Generuje se odpověď…
+          <div id="chat" class="chat"></div>
+
+          <div class="composer">
+            <textarea id="msgInput" placeholder="Napište dotaz… (v DEMO režimu se ptejte jako zákazník)"></textarea>
+            <button id="btnSend" class="btn good">Odeslat</button>
+          </div>
         </div>
       </div>
 
+      <!-- RIGHT: slim CTA + form -->
       <div class="card">
-        <div style="font-weight:700;">Chcete plnou verzi?</div>
-        <div class="muted small" style="margin-top:6px;">
-          Po pár dotazech vám to nabídnu i v chatu. Tady to máte kdykoliv po ruce.
+        <div class="cardHead">
+          <div class="h">Plná verze (nezávazně)</div>
         </div>
+        <div class="cardBody">
+          <div id="ctaStrip" class="ctaStrip">
+            <strong>Chcete plnou verzi?</strong>
+            <span>Klikněte sem a pošlu vám návrh, co přesně lze ve vaší firmě zlepšit.</span>
+          </div>
 
-        <div class="hr"></div>
+          <div id="formPanel" class="formPanel">
+            <div style="font-weight:900; margin-bottom:6px">Pošlu vám konkrétní návrh pro váš byznys</div>
+            <div class="help" style="margin-bottom:10px">
+              Abych vám poslal přesnější možnosti (co vše může chatbot dělat u vás + návrh flow), potřebuji základní kontakt.
+              Ozve se vám specialista na tvorbu chatbotů.
+            </div>
 
-        <div class="formgrid">
-          <input id="leadName" type="text" placeholder="Jméno a příjmení" />
-          <input id="leadPhone" type="tel" placeholder="Telefon" />
-          <input id="leadEmail" type="email" placeholder="E-mail" />
-          <input id="leadNote" type="text" placeholder="Co řešíte? (volitelné)" />
-        </div>
+            <div class="formGrid">
+              <div class="full">
+                <input id="leadName" type="text" placeholder="Jméno a příjmení" />
+              </div>
+              <div>
+                <input id="leadPhone" type="tel" placeholder="Telefon" />
+              </div>
+              <div>
+                <input id="leadEmail" type="email" placeholder="E-mail" />
+              </div>
+              <div class="full">
+                <input id="leadNote" type="text" placeholder="Co chcete, aby chatbot řešil? (volitelné)" />
+              </div>
+            </div>
 
-        <div class="row" style="margin-top:10px;">
-          <button id="sendLeadBtn" class="btn primary" type="button">Chci plnou verzi</button>
-        </div>
+            <div class="checkRow">
+              <input id="leadConsent" type="checkbox" checked />
+              <label for="leadConsent">
+                Souhlasím s kontaktováním ohledně nabídky a ukázky řešení. (Bez spamu.)
+              </label>
+            </div>
 
-        <div id="leadStatus" class="muted small" style="margin-top:10px;"></div>
+            <div style="display:flex; gap:10px; margin-top:10px">
+              <button id="btnSubmitLead" class="btn primary" style="flex:1">Chci plnou verzi</button>
+              <button id="btnCloseForm" class="btn ghost">Zavřít</button>
+            </div>
 
-        <div class="hr"></div>
+            <div id="formStatus" class="help" style="margin-top:8px"></div>
+          </div>
 
-        <div class="muted small">
-          <b>Tip:</b> V DEMO režimu to odpovídá „jako zákazník“. V HLAVNÍM režimu se to chová jako sales asistent a sbírá poptávku.
+          <div class="help" style="margin-top:10px">
+            Tip: V DEMO režimu chatbot odpovídá „jako zákaznická podpora“ podle webu.
+            V HLAVNÍM režimu se chová jako sales asistent a navede na plnou verzi.
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-<script>
-  // ---------- state ----------
-  const LS = {
-    MODE: "chat_mode_v1",
-    DEMO_THREAD: "demo_thread_id_v1",
-    SALES_THREAD: "sales_thread_id_v1",
-    SITE_URL: "demo_site_url_v1",
-    QCOUNT: "demo_qcount_v1",
-    COMPANY: "demo_company_name_v1",
-  };
-
-  function getMode() { return localStorage.getItem(LS.MODE) || "demo"; }
-  function setMode(mode) { localStorage.setItem(LS.MODE, mode === "sales" ? "sales" : "demo"); }
-  function getThreadId(mode) {
-    return localStorage.getItem(mode === "sales" ? LS.SALES_THREAD : LS.DEMO_THREAD) || "";
-  }
-  function setThreadId(mode, id) {
-    localStorage.setItem(mode === "sales" ? LS.SALES_THREAD : LS.DEMO_THREAD, id || "");
-  }
-  function addQCount() {
-    const n = Number(localStorage.getItem(LS.QCOUNT) || "0") + 1;
-    localStorage.setItem(LS.QCOUNT, String(n));
-    return n;
-  }
-  function resetDemo() {
-    localStorage.removeItem(LS.DEMO_THREAD);
-    localStorage.removeItem(LS.QCOUNT);
-  }
-
-  // ---------- ui helpers ----------
-  const elChat = document.getElementById("chat");
-  const elBanner = document.getElementById("banner");
-  const elLoading = document.getElementById("loading");
-
-  function msg(text, role="bot") {
-    const d = document.createElement("div");
-    d.className = "msg " + (role === "user" ? "user" : role === "sys" ? "sys" : "bot");
-    d.textContent = text;
-    elChat.appendChild(d);
-    elChat.scrollTop = elChat.scrollHeight;
-  }
-
-  function setBannerPreparing(companyName) {
-    elBanner.className = "banner";
-    elBanner.textContent =
-      `Připravuji pro vaši firmu AI chatbota na ukázku${companyName ? " ("+companyName+")" : ""}… ` +
-      `Plná verze pak umí daleko víc: zná detailně vaše služby a umí se doladit přesně na míru.`;
-  }
-
-  function setBannerReady(companyName, siteUrl) {
-    elBanner.className = "banner good";
-    elBanner.textContent =
-      `Dobrý den, jsem AI asistent firmy ${companyName || "vaší firmy"}. ` +
-      `Ptejte se mě jako typický zákazník. (DEMO – ukázka z webu: ${siteUrl || "—"})`;
-  }
-
-  function setBannerDefault() {
-    elBanner.className = "banner";
-    elBanner.textContent = "Zadejte URL webu a připravím personalizovanou demo ukázku.";
-  }
-
-  function updateModeButtons() {
-    const mode = getMode();
-    document.getElementById("modeDemo").classList.toggle("active", mode === "demo");
-    document.getElementById("modeSales").classList.toggle("active", mode === "sales");
-
-    // malý systémový info do chatu při přepnutí
-    msg(mode === "demo" ? "Přepnuto na DEMO asistenta." : "Přepnuto na HLAVNÍHO asistenta.", "sys");
-  }
-
-  // ---------- backend calls ----------
-  async function askAssistant(text) {
-    const mode = getMode();
-    const thread_id = getThreadId(mode);
-
-    elLoading.style.display = "block";
-    const res = await fetch("/.netlify/functions/search", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: text, thread_id, mode }),
-    });
-    const json = await res.json().catch(() => ({}));
-    elLoading.style.display = "none";
-
-    if (!json.ok) throw new Error(json.details || json.error || "Chyba");
-    if (json.thread_id) setThreadId(mode, json.thread_id);
-    return json.answer || "";
-  }
-
-  async function sendLead(payload) {
-    const res = await fetch("/.netlify/functions/lead", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json().catch(() => ({}));
-    return json;
-  }
-
-  // ---------- logic ----------
-  function guessCompanyNameFromUrl(url) {
-    try {
-      const u = new URL(url);
-      const host = u.hostname.replace(/^www\./, "");
-      const name = host.split(".")[0] || "";
-      if (!name) return "";
-      return name.charAt(0).toUpperCase() + name.slice(1);
-    } catch { return ""; }
-  }
-
-  async function buildDemo() {
-    const url = document.getElementById("siteUrl").value.trim();
-    if (!url) return;
-
-    // DEMO vždy reset a přepnout do demo
-    setMode("demo");
-    resetDemo();
-
-    localStorage.setItem(LS.SITE_URL, url);
-    const companyName = guessCompanyNameFromUrl(url);
-    localStorage.setItem(LS.COMPANY, companyName);
-
-    // banner + intro
-    setBannerPreparing(companyName);
-    msg(`Ukládám web: ${url}`, "sys");
-
-    // tady můžeš později přidat reálné "scrape" / analýzu.
-    // Pro teď jen krátká pauza a pak ukázkový start.
-    await new Promise(r => setTimeout(r, 700));
-    setBannerReady(companyName, url);
-
-    msg(`Jsem AI asistent firmy ${companyName || "vaší firmy"}. Ptejte se mě jako zákazník – např. cena, termín, postup, ukázka realizací.`, "bot");
-    msg(`Pozn.: Tohle je demo ukázka. Plná verze umí znát detaily (služby, ceny, termíny, postupy…) a doladíme ji na míru.`, "bot");
-
-    updateModeButtons();
-  }
-
-  async function onSend() {
-    const input = document.getElementById("msgInput");
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = "";
-
-    msg(text, "user");
-
-    try {
-      const answer = await askAssistant(text);
-      msg(answer || "…", "bot");
-
-      // po pár dotazech v DEMO nabídnout plnou verzi
-      if (getMode() === "demo") {
-        const q = addQCount();
-        if (q === 3) {
-          msg("Chcete vidět, jak by vypadala plná verze pro vaši firmu? Umí znát přesné detaily a sbírat poptávky. Pokud chcete, nechte mi kontakt a pošlu vám návrh.", "bot");
-          msg("Můžete kliknout na „HLAVNÍ asistent“ nebo vyplnit formulář vpravo.", "bot");
-        }
-      }
-    } catch (e) {
-      msg("Chyba: " + (e.message || e), "sys");
-    }
-  }
-
-  // ---------- wire ----------
-  document.getElementById("buildBtn").addEventListener("click", buildDemo);
-  document.getElementById("sendBtn").addEventListener("click", onSend);
-  document.getElementById("msgInput").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") onSend();
-  });
-
-  document.getElementById("modeDemo").addEventListener("click", () => {
-    setMode("demo");
-    updateModeButtons();
-  });
-  document.getElementById("modeSales").addEventListener("click", () => {
-    setMode("sales");
-    updateModeButtons();
-    msg("V HLAVNÍM režimu se asistent chová jako sales a může vás navést k plné verzi.", "sys");
-  });
-
-  document.getElementById("sendLeadBtn").addEventListener("click", async () => {
-    const name = document.getElementById("leadName").value.trim();
-    const phone = document.getElementById("leadPhone").value.trim();
-    const email = document.getElementById("leadEmail").value.trim();
-    const note = document.getElementById("leadNote").value.trim();
-    const url = localStorage.getItem(LS.SITE_URL) || document.getElementById("siteUrl").value.trim();
-
-    const status = document.getElementById("leadStatus");
-    status.textContent = "";
-
-    if (!name || !phone || !email) {
-      status.textContent = "Prosím vyplňte jméno, telefon a e-mail.";
-      return;
-    }
-
-    status.textContent = "Odesílám…";
-
-    const payload = {
-      name, phone, email,
-      message: note ? `Pozn.: ${note}` : "",
-      url,
-      mode: "full_version_request",
-      source: "sales-chatbot-demo",
+  <script>
+    // ====== STATE ======
+    const LS = {
+      mode: "sales_chatbot_mode_v3",
+      demo: "sales_chatbot_demo_state_v3",
+      tDemo: "sales_chatbot_thread_demo_v3",
+      tMain: "sales_chatbot_thread_main_v3",
+      msgCountDemo: "sales_chatbot_msgcount_demo_v3",
+      msgCountMain: "sales_chatbot_msgcount_main_v3",
     };
 
-    try {
-      const r = await sendLead(payload);
-      if (r && r.ok) {
-        status.textContent = "Hotovo ✅ Ozveme se vám s návrhem plné verze.";
-        msg("Děkuji! Kontakt mám uložený. Pokud chcete, můžete mi sem ještě napsat, co přesně má plná verze umět.", "bot");
-        setMode("sales");
-        updateModeButtons();
-      } else {
-        status.textContent = "Nepodařilo se odeslat. Zkuste to prosím znovu.";
-      }
-    } catch (e) {
-      status.textContent = "Chyba: " + (e.message || e);
+    let mode = localStorage.getItem(LS.mode) || "demo"; // demo | main
+    let demoState = JSON.parse(localStorage.getItem(LS.demo) || "null");
+    let threadDemo = localStorage.getItem(LS.tDemo) || "";
+    let threadMain = localStorage.getItem(LS.tMain) || "";
+    let msgCountDemo = parseInt(localStorage.getItem(LS.msgCountDemo) || "0", 10);
+    let msgCountMain = parseInt(localStorage.getItem(LS.msgCountMain) || "0", 10);
+
+    const CTA_AFTER = 3; // po kolika zprávách ukázat proužek
+
+    // ====== UI ======
+    const chatEl = document.getElementById("chat");
+    const msgInput = document.getElementById("msgInput");
+    const btnSend = document.getElementById("btnSend");
+    const btnDemo = document.getElementById("btnDemo");
+    const btnMain = document.getElementById("btnMain");
+    const btnReset = document.getElementById("btnReset");
+
+    const urlInput = document.getElementById("urlInput");
+    const btnCreateDemo = document.getElementById("btnCreateDemo");
+
+    const demoBanner = document.getElementById("demoBanner");
+    const demoBannerTitle = document.getElementById("demoBannerTitle");
+    const demoBannerText = document.getElementById("demoBannerText");
+    const demoBannerPill = document.getElementById("demoBannerPill");
+
+    const loaderRow = document.getElementById("loaderRow");
+    const loaderText = document.getElementById("loaderText");
+
+    const ctaStrip = document.getElementById("ctaStrip");
+    const formPanel = document.getElementById("formPanel");
+    const btnCloseForm = document.getElementById("btnCloseForm");
+    const btnSubmitLead = document.getElementById("btnSubmitLead");
+    const formStatus = document.getElementById("formStatus");
+
+    const leadName = document.getElementById("leadName");
+    const leadPhone = document.getElementById("leadPhone");
+    const leadEmail = document.getElementById("leadEmail");
+    const leadNote = document.getElementById("leadNote");
+    const leadConsent = document.getElementById("leadConsent");
+
+    function addMsg(role, text) {
+      const div = document.createElement("div");
+      div.className = "msg " + role;
+      div.textContent = text;
+      chatEl.appendChild(div);
+      chatEl.scrollTop = chatEl.scrollHeight;
     }
-  });
 
-  // init
-  (function init() {
-    const savedUrl = localStorage.getItem(LS.SITE_URL) || "";
-    if (savedUrl) document.getElementById("siteUrl").value = savedUrl;
+    function setLoading(on, text) {
+      loaderRow.style.display = on ? "block" : "none";
+      if (text) loaderText.textContent = text;
+    }
 
-    const company = localStorage.getItem(LS.COMPANY) || "";
-    if (savedUrl) setBannerReady(company, savedUrl);
-    else setBannerDefault();
+    function updateModeUI() {
+      if (mode === "demo") {
+        btnDemo.classList.add("active");
+        btnMain.classList.remove("active");
+        btnMain.classList.add("ghost");
+        msgInput.placeholder = "Napište dotaz… (v DEMO režimu se ptejte jako zákazník)";
+        addMsg("sys", "Přepnuto na DEMO asistenta.");
+      } else {
+        btnMain.classList.add("active");
+        btnDemo.classList.remove("active");
+        msgInput.placeholder = "Napište dotaz… (HLAVNÍ režim = plná verze / sales)";
+        addMsg("sys", "Přepnuto na HLAVNÍHO asistenta.");
+      }
+      localStorage.setItem(LS.mode, mode);
+      updateCTAVisibility();
+      renderBannerFromState();
+    }
 
-    msg("Ahoj 👋 Zadejte URL webu a klikněte na „Vytvořit demo“. Pak se ptejte jako zákazník.", "bot");
-  })();
-</script>
+    function renderBannerFromState() {
+      if (!demoState || !demoState.url) {
+        demoBanner.style.display = "none";
+        return;
+      }
+
+      // accent from theme color if available
+      if (demoState.theme_color) {
+        document.documentElement.style.setProperty("--accent", demoState.theme_color);
+      }
+
+      demoBanner.style.display = "block";
+      demoBannerTitle.textContent = `Dobrý den, jsem AI asistent firmy ${demoState.site_name || "vaší firmy"}.`;
+      demoBannerText.textContent =
+        `Ptejte se mě jako typický zákazník. (DEMO – ukázka z webu: ${demoState.url})\n` +
+        `Pozn.: Plná verze umí znát každý detail a dá se vyladit na míru (texty, procesy, pravidla, sběr poptávek).`;
+      demoBannerPill.textContent = `DEMO připravené pro: ${demoState.site_name || demoState.url}`;
+    }
+
+    function updateCTAVisibility() {
+      const count = mode === "demo" ? msgCountDemo : msgCountMain;
+      // CTA chceme typicky ukázat po pár dotazech v DEMO režimu (a klidně i v main)
+      const shouldShow = count >= CTA_AFTER;
+      ctaStrip.style.display = shouldShow ? "block" : "none";
+    }
+
+    // ====== DEMO PREPARE ======
+    async function createDemoFromUrl() {
+      const url = (urlInput.value || "").trim();
+      if (!url) {
+        addMsg("sys", "Zadejte prosím URL webu.");
+        return;
+      }
+
+      setLoading(true, "Připravuji pro vaši firmu AI chatbota na ukázku…");
+      addMsg("sys", "Chvilku… připravuji demo z vašeho webu.");
+
+      try {
+        const res = await fetch("/.netlify/functions/demo_prepare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "demo_prepare failed");
+
+        demoState = {
+          url: data.url,
+          site_name: data.site_name,
+          theme_color: data.theme_color || "",
+          summary: data.summary || "",
+        };
+        localStorage.setItem(LS.demo, JSON.stringify(demoState));
+
+        // reset DEMO thread (nový personalizovaný asistent = nový kontext)
+        threadDemo = "";
+        msgCountDemo = 0;
+        localStorage.setItem(LS.tDemo, "");
+        localStorage.setItem(LS.msgCountDemo, "0");
+
+        renderBannerFromState();
+
+        addMsg(
+          "bot",
+          `Hotovo ✅\n\nZde je demo asistent pro ${demoState.site_name || "vaši firmu"}.\n` +
+          `Ptejte se mě jako zákazník (cena, služby, termíny, postup…).`
+        );
+
+        // super důležité: hned posunout uživatele na chat a fokus
+        chatEl.scrollTop = chatEl.scrollHeight;
+        msgInput.focus();
+      } catch (e) {
+        addMsg("sys", "Nepodařilo se připravit demo z webu. Zkuste jinou URL nebo to zkusíme znovu.");
+        addMsg("sys", String(e.message || e));
+      } finally {
+        setLoading(false);
+        updateCTAVisibility();
+      }
+    }
+
+    // ====== SEND MESSAGE ======
+    async function sendMessage() {
+      const text = (msgInput.value || "").trim();
+      if (!text) return;
+
+      addMsg("user", text);
+      msgInput.value = "";
+
+      const currentThread = mode === "demo" ? threadDemo : threadMain;
+      const site_context = (mode === "demo" && demoState && demoState.summary) ? demoState.summary : "";
+
+      // průběžné info (lidi jsou netrpěliví)
+      addMsg("sys", "Generuji odpověď…");
+
+      try {
+        const res = await fetch("/.netlify/functions/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: text,
+            thread_id: currentThread || "",
+            mode: mode,                 // "demo" | "main"
+            site_context: site_context, // DEMO only
+          }),
+        });
+
+        const data = await res.json();
+        if (!data.ok) {
+          throw new Error(data.error || "search failed");
+        }
+
+        // store thread id per mode
+        if (mode === "demo") {
+          threadDemo = data.thread_id;
+          localStorage.setItem(LS.tDemo, threadDemo);
+          msgCountDemo++;
+          localStorage.setItem(LS.msgCountDemo, String(msgCountDemo));
+        } else {
+          threadMain = data.thread_id;
+          localStorage.setItem(LS.tMain, threadMain);
+          msgCountMain++;
+          localStorage.setItem(LS.msgCountMain, String(msgCountMain));
+        }
+
+        addMsg("bot", data.answer);
+        updateCTAVisibility();
+      } catch (e) {
+        addMsg("bot", "Omlouvám se, teď se to nepovedlo. Zkuste to prosím znovu.");
+        addMsg("sys", String(e.message || e));
+      }
+    }
+
+    // ====== FORM ======
+    function openForm() {
+      formPanel.style.display = "block";
+      formStatus.textContent = "";
+    }
+    function closeForm() {
+      formPanel.style.display = "none";
+      formStatus.textContent = "";
+    }
+
+    async function submitLead() {
+      formStatus.textContent = "";
+
+      const name = (leadName.value || "").trim();
+      const phone = (leadPhone.value || "").trim();
+      const email = (leadEmail.value || "").trim();
+      const note = (leadNote.value || "").trim();
+      const consent = !!leadConsent.checked;
+
+      if (!consent) {
+        formStatus.textContent = "Prosím zaškrtněte souhlas s kontaktováním.";
+        return;
+      }
+      if (!name || !phone || !email) {
+        formStatus.textContent = "Prosím vyplňte jméno, telefon a e-mail.";
+        return;
+      }
+
+      const url = demoState?.url ? demoState.url : "(nezadáno)";
+      const message =
+        `Web: ${url} | Režim: ${mode} | Poznámka: ${note || "-"} | Shrnutí webu: ${demoState?.summary ? demoState.summary.slice(0, 500) : "-"}`;
+
+      formStatus.textContent = "Odesílám…";
+
+      try {
+        const res = await fetch("/.netlify/functions/lead", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, phone, email, message }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "lead failed");
+
+        formStatus.textContent = "Hotovo ✅ Ozveme se vám.";
+        addMsg("sys", "Kontakt uložen. Ozveme se vám s návrhem plné verze.");
+      } catch (e) {
+        formStatus.textContent = "Nepodařilo se odeslat. Zkuste to prosím znovu.";
+        addMsg("sys", String(e.message || e));
+      }
+    }
+
+    // ====== RESET ======
+    function resetAll() {
+      localStorage.removeItem(LS.demo);
+      localStorage.removeItem(LS.tDemo);
+      localStorage.removeItem(LS.tMain);
+      localStorage.removeItem(LS.msgCountDemo);
+      localStorage.removeItem(LS.msgCountMain);
+
+      demoState = null;
+      threadDemo = "";
+      threadMain = "";
+      msgCountDemo = 0;
+      msgCountMain = 0;
+
+      chatEl.innerHTML = "";
+      demoBanner.style.display = "none";
+      closeForm();
+      addMsg("sys", "Reset hotový.");
+      updateCTAVisibility();
+    }
+
+    // ====== EVENTS ======
+    btnCreateDemo.addEventListener("click", createDemoFromUrl);
+    btnSend.addEventListener("click", sendMessage);
+    msgInput.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") sendMessage();
+    });
+
+    btnDemo.addEventListener("click", () => { mode = "demo"; updateModeUI(); });
+    btnMain.addEventListener("click", () => { mode = "main"; updateModeUI(); });
+
+    btnReset.addEventListener("click", resetAll);
+
+    ctaStrip.addEventListener("click", openForm);
+    btnCloseForm.addEventListener("click", closeForm);
+    btnSubmitLead.addEventListener("click", submitLead);
+
+    // ====== INIT ======
+    (function init() {
+      addMsg("sys", "Připraveno. Zadejte web a klikněte na „Vytvořit demo“.");
+      if (demoState?.url) {
+        urlInput.value = demoState.url;
+        renderBannerFromState();
+        addMsg("sys", `Načten poslední web: ${demoState.url}`);
+      }
+      updateModeUI();
+      updateCTAVisibility();
+    })();
+  </script>
 </body>
 </html>

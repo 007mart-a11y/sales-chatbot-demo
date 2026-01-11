@@ -275,28 +275,41 @@ function setContext(text){
   state.contextReady = !!(text && text.length > 50);
   saveState();
 }
-
-/* ✅ FIX: robust scrape reader (text -> JSON if possible) */
 async function scrapeHomepage(url){
-  const r = await fetch("/.netlify/functions/scrape",{
-    method:"POST",
-    headers:{ "content-type":"application/json" },
-    body:JSON.stringify({ url })
-  });
+  try{
+    const r = await fetch("/.netlify/functions/scrape",{
+      method:"POST",
+      headers:{ "content-type":"application/json" },
+      body:JSON.stringify({ url })
+    });
 
-  const raw = await r.text(); // always text
-  let d = {};
-  try { d = JSON.parse(raw); } catch { d = { raw }; }
+    const d = await r.json().catch(()=>({}));
 
-  if(!r.ok){
-    throw new Error(d.error || d.details || ("Scrape failed: " + String(raw).slice(0,200)));
+    // ❗ nikdy už neházíme error – DEMO musí jet i bez dat
+    if(!r.ok || !d || d.ok !== true){
+      console.log("scrape failed:", d);
+      return "";
+    }
+
+    const text =
+      String(
+        d.text ||
+        d.content ||
+        d.body ||
+        d.html ||
+        d.markdown ||
+        d.result ||
+        ""
+      ).trim();
+
+    // ❗ i prázdný text je OK
+    if(!text) return "";
+
+    return text;
+  }catch(e){
+    console.log("scrape exception:", e);
+    return "";
   }
-
-  const text = String(d.text || d.content || d.body || d.raw || "");
-  if(!text || text.length < 50){
-    throw new Error("Scrape returned empty/short text: " + String(raw).slice(0,200));
-  }
-  return text;
 }
 
 /* DEMO AI */
@@ -324,6 +337,7 @@ function buildDemoFromContext(){
   const domain = prettyDomain(state.url || "");
   const snippet = raw.slice(0, 600).replace(/\s+/g," ").trim();
 
+  // velmi jednoduchá heuristika – jen aby to vypadalo „na míru“
   const lower = raw.toLowerCase();
   const hasEshop = lower.includes("košík") || lower.includes("doprava") || lower.includes("platba") || lower.includes("produkt");
   const hasBooking = lower.includes("rezerv") || lower.includes("objednat") || lower.includes("termín") || lower.includes("kalendář");
@@ -514,6 +528,7 @@ function handleMenuAction(action){
   if(action==="ask"){ setMode("chat"); add("bot","Jasně — zeptejte se. 🙂"); input.focus(); return; }
   if(action==="show_demo"){
     setMode("chat");
+    // když chybí kontext, zkusíme ho udělat znovu automaticky
     if(!getContext()){
       add("bot","Nemám ještě text z homepage. Zkusím ho stáhnout…");
       (async ()=>{
@@ -524,7 +539,7 @@ function handleMenuAction(action){
           add("bot","Hotovo — homepage mám načtenou. ✅");
           renderDemoPreview();
         }catch(e){
-          add("bot","Nepodařilo se stáhnout homepage. (Je to problém funkce /scrape, ne chatu.) Zkuste prosím znovu nebo pošlete URL ještě jednou.");
+          add("bot","Nepodařilo se stáhnout homepage. Zkuste prosím znovu nebo pošlete URL ještě jednou.");
           if(DEBUG) add("bot","DEBUG scrape error: "+String(e));
         }finally{
           setStatus("připraveno");
@@ -563,13 +578,35 @@ async function send(){
   try{
     setStatus("pracuji…");
 
-    if(isAskingForDemo(t) && state.urlSaved && state.url){
-      setMode("chat");
-      renderDemoPreview();
-      setStatus("připraveno");
-      return;
+   // lokální ukázka + scrape homepage
+if(isAskingForDemo(t) && state.urlSaved && state.url){
+  setMode("chat");
+  add("bot", "Načítám obsah vašeho webu pro ukázku…");
+
+  try {
+    const scraped = await scrapeHomepage(state.url);
+
+    if (scraped && scraped.length > 50) {
+      state.homepageContext = scraped;
+      state.contextStatus = "ok";
+      saveState();
+    } else {
+      state.contextStatus = "fail";
+      saveState();
+      add("bot", "⚠️ Homepage se načetla, ale bez dostatečného obsahu. Ukázka bude obecná.");
     }
 
+  } catch (e) {
+    state.contextStatus = "fail";
+    saveState();
+    add("bot", "⚠️ Nepodařilo se načíst homepage. Ukázka bude obecná.");
+  }
+
+  renderDemoPreview();
+  setStatus("připraveno");
+  return;
+}
+    // URL mode → uložit do Sheets + scrape + ukázka
     if(state.mode==="url"){
       if(!looksValidUrl(t)){
         add("bot","Tohle nevypadá jako URL. Zkuste prosím třeba „muj-web.cz“ nebo „www.muj-web.cz“.");
@@ -581,6 +618,7 @@ async function send(){
       state.url = url;
       saveState();
 
+      // 1) uložit do Sheets
       const r = await saveUrlToSheets(url);
       if(!r.ok){
         if(DEBUG) add("bot","Chyba ukládání do Sheets:\n"+r.raw);
@@ -592,26 +630,24 @@ async function send(){
       saveState();
       add("bot","Děkuji — URL mám uložené. ✅");
 
+      // 2) scrape homepage
       add("bot","Ještě si rychle načtu homepage, ať ukázka odpovídá vašemu webu…");
       setStatus("stahuji homepage…");
+      const txt = await scrapeHomepage(url);
+      setContext(txt);
+      add("bot","Hotovo — homepage mám načtenou. ✅");
 
-      try{
-        const txt = await scrapeHomepage(url);
-        setContext(txt);
-        add("bot","Hotovo — homepage mám načtenou. ✅");
-      }catch(e){
-        add("bot","Nepodařilo se stáhnout homepage. (Pro demo AI potřebuju funkci /scrape.) Můžete pokračovat i bez toho, ale odpovědi budou obecnější.");
-        if(DEBUG) add("bot","DEBUG scrape error: "+String(e));
-      }
-
+      // 3) ukázka + přepnutí do chatu
       setMode("chat");
       renderDemoPreview();
       setStatus("připraveno");
       return;
     }
 
+    // chat/menu → DEMO AI odpověď (podle homepage)
     setMode("chat");
 
+    // pokud nemáme context, upozorni
     if(!getContext() && state.url){
       add("bot","⚠️ Nemám načtenou homepage, odpovím obecně. (Zkuste „Zobrazit ukázku“ pro znovunačtení.)");
     }

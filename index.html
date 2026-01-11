@@ -3,781 +3,337 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sales Chatbot Demo</title>
+  <title>Sales chatbot demo</title>
   <style>
-    :root{
-      --bg:#0b0f14;
-      --panel:#0f1622;
-      --panel2:#121b2a;
-      --text:#e7eefc;
-      --muted:#a9b6cf;
-      --border:#22314b;
-      --chip:#162235;
-      --ok:#2ee59d;
-      --warn:#ffd36a;
-      --danger:#ff6b6b;
-      --shadow:0 18px 45px rgba(0,0,0,.45);
-      --radius:14px;
-      --radius2:18px;
-      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    :root { color-scheme: dark; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b1020; color:#e9eeff; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 22px; }
+    .card { background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); border-radius: 16px; padding: 16px; }
+    .row { display:flex; gap: 12px; flex-wrap:wrap; align-items:center; }
+    .btn { cursor:pointer; border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color:#e9eeff; padding: 10px 12px; border-radius: 999px; }
+    .btn.primary { background: linear-gradient(90deg, #7c3aed, #22c55e); border:0; }
+    .btn.active { outline: 2px solid rgba(124,58,237,0.7); }
+    .muted { color: rgba(233,238,255,0.75); }
+    .banner { padding: 14px; border-radius: 14px; background: rgba(124,58,237,0.18); border:1px solid rgba(124,58,237,0.35); }
+    .banner.good { background: rgba(34,197,94,0.14); border-color: rgba(34,197,94,0.35); }
+    .chat { margin-top: 14px; display:flex; flex-direction:column; gap: 10px; }
+    .msg { max-width: 78ch; padding: 12px 14px; border-radius: 14px; border:1px solid rgba(255,255,255,0.10); }
+    .msg.user { align-self:flex-end; background: rgba(255,255,255,0.06); }
+    .msg.bot { align-self:flex-start; background: rgba(0,0,0,0.18); }
+    .msg.sys { align-self:stretch; background: rgba(255,255,255,0.03); border-style:dashed; }
+    .composer { margin-top: 12px; display:flex; gap: 10px; }
+    input[type="text"], input[type="url"], input[type="tel"], input[type="email"] {
+      width: 100%; padding: 12px 12px; border-radius: 12px; border:1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.25); color:#e9eeff;
     }
-    *{ box-sizing:border-box; }
-    body{
-      margin:0; font-family:var(--font); background:#0a0c10; color:var(--text);
-      min-height:100vh; display:flex; align-items:center; justify-content:center;
-    }
-    /* --- Floating widget --- */
-    .bubble{
-      position:fixed; right:18px; bottom:18px; width:56px; height:56px;
-      border-radius:999px; background:linear-gradient(180deg,#1a2a44,#111a2b);
-      border:1px solid var(--border); box-shadow:var(--shadow);
-      display:flex; align-items:center; justify-content:center;
-      cursor:pointer; user-select:none;
-    }
-    .bubble span{ font-size:22px; }
-
-    .panel{
-      position:fixed; right:18px; bottom:86px; width:380px; max-width:calc(100vw - 36px);
-      height:560px; max-height:calc(100vh - 120px);
-      background:var(--panel); border:1px solid var(--border); border-radius:var(--radius2);
-      box-shadow:var(--shadow); overflow:hidden;
-      display:none; flex-direction:column;
-    }
-    .panel.open{ display:flex; }
-
-    .header{
-      padding:12px 12px 10px;
-      background:linear-gradient(180deg,#0f1726,#0e1522);
-      border-bottom:1px solid var(--border);
-      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
-    }
-    .header .title{
-      display:flex; flex-direction:column; gap:2px;
-      min-width:0;
-    }
-    .header .title .h1{ font-weight:700; font-size:14px; letter-spacing:.2px; }
-    .header .title .h2{ color:var(--muted); font-size:12px; }
-    .header .close{
-      cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--text);
-      border-radius:10px; padding:6px 10px; font-size:12px;
-    }
-
-    /* Mode banner */
-    .modebar{
-      padding:10px 12px;
-      border-bottom:1px solid var(--border);
-      background:var(--panel2);
-      display:none;
-    }
-    .modebar.on{ display:block; }
-    .modebar .line1{ font-weight:700; font-size:13px; }
-    .modebar .line2{ color:var(--muted); font-size:12px; margin-top:2px; }
-
-    /* Main views */
-    .content{ flex:1; display:flex; flex-direction:column; min-height:0; }
-
-    .view{ display:none; flex:1; min-height:0; }
-    .view.on{ display:flex; flex-direction:column; min-height:0; }
-
-    .home{
-      padding:14px; gap:12px;
-    }
-    .tiles{
-      display:grid; grid-template-columns:1fr; gap:10px;
-    }
-    .tile{
-      background:linear-gradient(180deg,#121c2e,#0f1726);
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:12px;
-      cursor:pointer;
-      transition:transform .08s ease;
-    }
-    .tile:active{ transform:scale(.99); }
-    .tile .t1{ font-weight:700; font-size:13px; }
-    .tile .t2{ color:var(--muted); font-size:12px; margin-top:4px; line-height:1.35; }
-
-    .urlbox{
-      background:rgba(255,255,255,.03);
-      border:1px dashed rgba(255,255,255,.16);
-      border-radius:14px;
-      padding:12px;
-      display:flex; flex-direction:column; gap:8px;
-    }
-    .urlbox label{ font-size:12px; color:var(--muted); }
-    .row{
-      display:flex; gap:8px;
-    }
-    input[type="text"], input[type="email"], input[type="tel"]{
-      width:100%;
-      background:#0b1220;
-      border:1px solid var(--border);
-      border-radius:12px;
-      padding:10px 12px;
-      color:var(--text);
-      outline:none;
-      font-size:13px;
-    }
-    .btn{
-      border:1px solid var(--border);
-      background:linear-gradient(180deg,#1a2a44,#121b2a);
-      color:var(--text);
-      padding:10px 12px;
-      border-radius:12px;
-      font-size:13px;
-      cursor:pointer;
-      white-space:nowrap;
-    }
-    .btn.primary{
-      border-color:rgba(46,229,157,.35);
-      background:linear-gradient(180deg,rgba(46,229,157,.25),rgba(46,229,157,.10));
-    }
-    .btn.ghost{
-      background:transparent;
-    }
-    .smallnote{ color:var(--muted); font-size:11px; line-height:1.4; }
-
-    /* Chat */
-    .chat{
-      display:flex; flex-direction:column; min-height:0; flex:1;
-    }
-    .messages{
-      flex:1; min-height:0; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:10px;
-      scroll-behavior:smooth;
-    }
-    .msg{
-      max-width:88%;
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:10px 12px;
-      font-size:13px; line-height:1.45;
-      white-space:pre-wrap;
-      word-break:break-word;
-    }
-    .msg.bot{
-      align-self:flex-start;
-      background:linear-gradient(180deg,#121c2e,#0f1726);
-    }
-    .msg.user{
-      align-self:flex-end;
-      background:linear-gradient(180deg,#15223a,#101a2b);
-      border-color:rgba(255,255,255,.12);
-    }
-    .chips{
-      display:flex; flex-wrap:wrap; gap:8px; padding:0 12px 10px;
-    }
-    .chip{
-      border:1px solid rgba(255,255,255,.12);
-      background:var(--chip);
-      color:var(--text);
-      padding:8px 10px;
-      border-radius:999px;
-      font-size:12px;
-      cursor:pointer;
-      user-select:none;
-    }
-    .inputbar{
-      border-top:1px solid var(--border);
-      padding:10px;
-      display:flex; gap:8px;
-      background:linear-gradient(180deg,#0e1522,#0b101a);
-    }
-    .sendbtn{
-      width:44px; min-width:44px;
-      display:flex; align-items:center; justify-content:center;
-      border-radius:12px;
-    }
-    .sendbtn span{ font-size:16px; }
-
-    /* Creating overlay */
-    .overlay{
-      position:absolute; inset:0;
-      display:none;
-      align-items:center; justify-content:center;
-      background:rgba(8,10,14,.72);
-      backdrop-filter: blur(6px);
-      z-index:10;
-    }
-    .overlay.on{ display:flex; }
-    .card{
-      width:92%; max-width:340px;
-      background:linear-gradient(180deg,#111a2b,#0f1622);
-      border:1px solid var(--border);
-      border-radius:18px;
-      padding:14px;
-      box-shadow:var(--shadow);
-    }
-    .card .ct{ font-weight:800; margin-bottom:8px; }
-    .card .cb{ color:var(--muted); font-size:12px; line-height:1.4; }
-    .card .cm{ margin-top:10px; font-size:11px; color:var(--muted); }
-    .steps{
-      margin-top:10px;
-      display:flex; flex-direction:column; gap:6px;
-      font-size:12px;
-    }
-    .step{ display:flex; align-items:center; gap:8px; color:var(--muted); }
-    .dot{
-      width:8px; height:8px; border-radius:999px;
-      background:rgba(255,255,255,.22);
-      animation:pulse 1.2s infinite ease-in-out;
-    }
-    .step:nth-child(2) .dot{ animation-delay:.15s; }
-    .step:nth-child(3) .dot{ animation-delay:.3s; }
-    @keyframes pulse{
-      0%,100%{ transform:scale(.85); opacity:.55; }
-      50%{ transform:scale(1.1); opacity:1; }
-    }
-
-    /* Lead card inside chat */
-    .leadcard{
-      max-width:100%;
-      border:1px solid rgba(46,229,157,.26);
-      background:linear-gradient(180deg,rgba(46,229,157,.10),rgba(46,229,157,.04));
-      border-radius:16px;
-      padding:12px;
-    }
-    .leadcard .lh{ font-weight:800; margin-bottom:6px; }
-    .leadcard .lt{ color:var(--muted); font-size:12px; line-height:1.4; margin-bottom:10px; }
-    .leadgrid{ display:grid; grid-template-columns:1fr; gap:8px; }
-    .leadactions{ display:flex; gap:8px; margin-top:10px; }
-    .oktoast{
-      border:1px solid rgba(46,229,157,.32);
-      background:rgba(46,229,157,.08);
-      color:var(--text);
-      padding:10px 12px;
-      border-radius:14px;
-      font-size:13px;
-    }
-    .errtoast{
-      border:1px solid rgba(255,107,107,.32);
-      background:rgba(255,107,107,.08);
-      color:var(--text);
-      padding:10px 12px;
-      border-radius:14px;
-      font-size:13px;
-    }
-    a{ color:inherit; }
+    .split { display:grid; grid-template-columns: 1.2fr 0.8fr; gap: 14px; margin-top: 14px; }
+    @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+    .formgrid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 700px) { .formgrid { grid-template-columns: 1fr; } }
+    .hr { height:1px; background: rgba(255,255,255,0.10); margin: 12px 0; }
+    .small { font-size: 13px; }
   </style>
 </head>
-
 <body>
-  <div class="bubble" id="openBtn" title="Otevřít chat">
-    <span>💬</span>
-  </div>
-
-  <div class="panel" id="panel">
-    <div class="header">
-      <div class="title">
-        <div class="h1">AI Chatbot – Ukázka zdarma</div>
-        <div class="h2" id="subTitle">Vyzkoušejte demo během pár sekund</div>
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;">
+      <div>
+        <div style="font-weight:700; font-size:18px;">AI Chatbot – demo</div>
+        <div class="muted small">DEMO režim (ukázka) + HLAVNÍ režim (plná verze / sales)</div>
       </div>
-      <button class="close" id="closeBtn">Zavřít</button>
+      <div class="row">
+        <button id="modeDemo" class="btn active" type="button">DEMO asistent</button>
+        <button id="modeSales" class="btn" type="button">HLAVNÍ asistent</button>
+      </div>
     </div>
 
-    <div class="modebar" id="modebar">
-      <div class="line1" id="modeLine1"></div>
-      <div class="line2" id="modeLine2"></div>
-    </div>
-
-    <div class="content">
-      <!-- HOME VIEW -->
-      <div class="view home on" id="homeView">
-        <div class="tiles">
-          <div class="tile" id="tileFreeDemo">
-            <div class="t1">Získat ukázku zdarma</div>
-            <div class="t2">Zadejte web a hned uvidíte, jak by odpovídal AI asistent vaší firmy (ceny, termíny, postup).</div>
-          </div>
-          <div class="tile" id="tileWhat">
-            <div class="t1">Co umí chatbot?</div>
-            <div class="t2">Odpovídá 24/7, zjednoduší komunikaci a dokáže automaticky sbírat poptávky.</div>
-          </div>
-          <div class="tile" id="tileAsk">
-            <div class="t1">Zeptejte se AI</div>
-            <div class="t2">Zeptejte se obecně. Pro personalizované odpovědi zadejte web.</div>
-          </div>
+    <div class="split">
+      <div class="card">
+        <div id="banner" class="banner">
+          Zadejte URL webu a připravím personalizovanou demo ukázku.
         </div>
 
-        <div class="urlbox" id="urlBox" style="display:none;">
-          <label for="urlInput">URL vašeho webu</label>
-          <div class="row">
-            <input id="urlInput" type="text" placeholder="např. https://dachmantechnik.cz" />
-            <button class="btn primary" id="btnCreate">Vytvořit demo</button>
-          </div>
-          <div class="smallnote">Tip: stačí doména. Např. <b>dachmantechnik.cz</b></div>
+        <div class="hr"></div>
+
+        <div class="row">
+          <input id="siteUrl" type="url" placeholder="https://www.vas-web.cz" />
+          <button id="buildBtn" class="btn primary" type="button">Vytvořit demo</button>
+        </div>
+        <div class="muted small" style="margin-top:8px;">
+          Pozn.: Demo je rychlá ukázka. Plná verze umí znát detaily vaší firmy (služby, ceny, termíny, postupy…) a dá se doladit na míru.
         </div>
 
-        <div class="smallnote">
-          Pozn.: Ukázka je demo. Pokud si nejsem jistý, řeknu to.  
+        <div id="chat" class="chat"></div>
+
+        <div class="composer">
+          <input id="msgInput" type="text" placeholder="Napište dotaz..." />
+          <button id="sendBtn" class="btn primary" type="button">Odeslat</button>
+        </div>
+        <div id="loading" class="muted small" style="margin-top:8px; display:none;">
+          Generuje se odpověď…
         </div>
       </div>
 
-      <!-- CHAT VIEW -->
-      <div class="view chat" id="chatView">
-        <div class="messages" id="messages"></div>
-
-        <div class="chips" id="chips" style="display:none;"></div>
-
-        <div class="inputbar">
-          <input id="msgInput" type="text" placeholder="Napište dotaz…" />
-          <button class="btn primary sendbtn" id="sendBtn" title="Odeslat"><span>➤</span></button>
+      <div class="card">
+        <div style="font-weight:700;">Chcete plnou verzi?</div>
+        <div class="muted small" style="margin-top:6px;">
+          Po pár dotazech vám to nabídnu i v chatu. Tady to máte kdykoliv po ruce.
         </div>
 
-        <div class="overlay" id="overlay">
-          <div class="card">
-            <div class="ct">🚀 Vytvářím AI chatbota pro vaši firmu</div>
-            <div class="cb">
-              Připravuji ukázku, jak může AI odpovídat zákazníkům za vás.<br/>
-              Plná verze chatbota se učí vaše služby do hloubky a pomáhá vám získávat nové zakázky.
-            </div>
-            <div class="steps">
-              <div class="step"><span class="dot"></span><span>Načítám obsah webu…</span></div>
-              <div class="step"><span class="dot"></span><span>Připravuji odpovědi na míru…</span></div>
-              <div class="step"><span class="dot"></span><span>Stavím ukázkový chat…</span></div>
-            </div>
-            <div class="cm">Chvilku strpení, je to otázka pár vteřin…</div>
-          </div>
+        <div class="hr"></div>
+
+        <div class="formgrid">
+          <input id="leadName" type="text" placeholder="Jméno a příjmení" />
+          <input id="leadPhone" type="tel" placeholder="Telefon" />
+          <input id="leadEmail" type="email" placeholder="E-mail" />
+          <input id="leadNote" type="text" placeholder="Co řešíte? (volitelné)" />
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button id="sendLeadBtn" class="btn primary" type="button">Chci plnou verzi</button>
+        </div>
+
+        <div id="leadStatus" class="muted small" style="margin-top:10px;"></div>
+
+        <div class="hr"></div>
+
+        <div class="muted small">
+          <b>Tip:</b> V DEMO režimu to odpovídá „jako zákazník“. V HLAVNÍM režimu se to chová jako sales asistent a sbírá poptávku.
         </div>
       </div>
     </div>
   </div>
 
-  <script>
-    /**********************
-     * Minimal, practical implementation:
-     * - DEMO/PERSONALIZED UI
-     * - Calls /search for answers (Assistants v2 backend)
-     * - Shows lead banner after 3 user messages in demo
-     * - Sends lead to /lead (Google Sheets)
-     **********************/
+<script>
+  // ---------- state ----------
+  const LS = {
+    MODE: "chat_mode_v1",
+    DEMO_THREAD: "demo_thread_id_v1",
+    SALES_THREAD: "sales_thread_id_v1",
+    SITE_URL: "demo_site_url_v1",
+    QCOUNT: "demo_qcount_v1",
+    COMPANY: "demo_company_name_v1",
+  };
 
-    const LS = {
-      mode: "sales_chatbot_mode_v3",            // "home" | "demo"
-      domain: "sales_chatbot_domain_v3",        // domain string
-      thread: "sales_chatbot_thread_id_v3",     // thread_id from backend
-      qcount: "sales_chatbot_demo_qcount_v3",   // integer
-      leadSent: "sales_chatbot_lead_sent_v3"    // "1" if sent
+  function getMode() { return localStorage.getItem(LS.MODE) || "demo"; }
+  function setMode(mode) { localStorage.setItem(LS.MODE, mode === "sales" ? "sales" : "demo"); }
+  function getThreadId(mode) {
+    return localStorage.getItem(mode === "sales" ? LS.SALES_THREAD : LS.DEMO_THREAD) || "";
+  }
+  function setThreadId(mode, id) {
+    localStorage.setItem(mode === "sales" ? LS.SALES_THREAD : LS.DEMO_THREAD, id || "");
+  }
+  function addQCount() {
+    const n = Number(localStorage.getItem(LS.QCOUNT) || "0") + 1;
+    localStorage.setItem(LS.QCOUNT, String(n));
+    return n;
+  }
+  function resetDemo() {
+    localStorage.removeItem(LS.DEMO_THREAD);
+    localStorage.removeItem(LS.QCOUNT);
+  }
+
+  // ---------- ui helpers ----------
+  const elChat = document.getElementById("chat");
+  const elBanner = document.getElementById("banner");
+  const elLoading = document.getElementById("loading");
+
+  function msg(text, role="bot") {
+    const d = document.createElement("div");
+    d.className = "msg " + (role === "user" ? "user" : role === "sys" ? "sys" : "bot");
+    d.textContent = text;
+    elChat.appendChild(d);
+    elChat.scrollTop = elChat.scrollHeight;
+  }
+
+  function setBannerPreparing(companyName) {
+    elBanner.className = "banner";
+    elBanner.textContent =
+      `Připravuji pro vaši firmu AI chatbota na ukázku${companyName ? " ("+companyName+")" : ""}… ` +
+      `Plná verze pak umí daleko víc: zná detailně vaše služby a umí se doladit přesně na míru.`;
+  }
+
+  function setBannerReady(companyName, siteUrl) {
+    elBanner.className = "banner good";
+    elBanner.textContent =
+      `Dobrý den, jsem AI asistent firmy ${companyName || "vaší firmy"}. ` +
+      `Ptejte se mě jako typický zákazník. (DEMO – ukázka z webu: ${siteUrl || "—"})`;
+  }
+
+  function setBannerDefault() {
+    elBanner.className = "banner";
+    elBanner.textContent = "Zadejte URL webu a připravím personalizovanou demo ukázku.";
+  }
+
+  function updateModeButtons() {
+    const mode = getMode();
+    document.getElementById("modeDemo").classList.toggle("active", mode === "demo");
+    document.getElementById("modeSales").classList.toggle("active", mode === "sales");
+
+    // malý systémový info do chatu při přepnutí
+    msg(mode === "demo" ? "Přepnuto na DEMO asistenta." : "Přepnuto na HLAVNÍHO asistenta.", "sys");
+  }
+
+  // ---------- backend calls ----------
+  async function askAssistant(text) {
+    const mode = getMode();
+    const thread_id = getThreadId(mode);
+
+    elLoading.style.display = "block";
+    const res = await fetch("/.netlify/functions/search", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: text, thread_id, mode }),
+    });
+    const json = await res.json().catch(() => ({}));
+    elLoading.style.display = "none";
+
+    if (!json.ok) throw new Error(json.details || json.error || "Chyba");
+    if (json.thread_id) setThreadId(mode, json.thread_id);
+    return json.answer || "";
+  }
+
+  async function sendLead(payload) {
+    const res = await fetch("/.netlify/functions/lead", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    return json;
+  }
+
+  // ---------- logic ----------
+  function guessCompanyNameFromUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, "");
+      const name = host.split(".")[0] || "";
+      if (!name) return "";
+      return name.charAt(0).toUpperCase() + name.slice(1);
+    } catch { return ""; }
+  }
+
+  async function buildDemo() {
+    const url = document.getElementById("siteUrl").value.trim();
+    if (!url) return;
+
+    // DEMO vždy reset a přepnout do demo
+    setMode("demo");
+    resetDemo();
+
+    localStorage.setItem(LS.SITE_URL, url);
+    const companyName = guessCompanyNameFromUrl(url);
+    localStorage.setItem(LS.COMPANY, companyName);
+
+    // banner + intro
+    setBannerPreparing(companyName);
+    msg(`Ukládám web: ${url}`, "sys");
+
+    // tady můžeš později přidat reálné "scrape" / analýzu.
+    // Pro teď jen krátká pauza a pak ukázkový start.
+    await new Promise(r => setTimeout(r, 700));
+    setBannerReady(companyName, url);
+
+    msg(`Jsem AI asistent firmy ${companyName || "vaší firmy"}. Ptejte se mě jako zákazník – např. cena, termín, postup, ukázka realizací.`, "bot");
+    msg(`Pozn.: Tohle je demo ukázka. Plná verze umí znát detaily (služby, ceny, termíny, postupy…) a doladíme ji na míru.`, "bot");
+
+    updateModeButtons();
+  }
+
+  async function onSend() {
+    const input = document.getElementById("msgInput");
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+
+    msg(text, "user");
+
+    try {
+      const answer = await askAssistant(text);
+      msg(answer || "…", "bot");
+
+      // po pár dotazech v DEMO nabídnout plnou verzi
+      if (getMode() === "demo") {
+        const q = addQCount();
+        if (q === 3) {
+          msg("Chcete vidět, jak by vypadala plná verze pro vaši firmu? Umí znát přesné detaily a sbírat poptávky. Pokud chcete, nechte mi kontakt a pošlu vám návrh.", "bot");
+          msg("Můžete kliknout na „HLAVNÍ asistent“ nebo vyplnit formulář vpravo.", "bot");
+        }
+      }
+    } catch (e) {
+      msg("Chyba: " + (e.message || e), "sys");
+    }
+  }
+
+  // ---------- wire ----------
+  document.getElementById("buildBtn").addEventListener("click", buildDemo);
+  document.getElementById("sendBtn").addEventListener("click", onSend);
+  document.getElementById("msgInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") onSend();
+  });
+
+  document.getElementById("modeDemo").addEventListener("click", () => {
+    setMode("demo");
+    updateModeButtons();
+  });
+  document.getElementById("modeSales").addEventListener("click", () => {
+    setMode("sales");
+    updateModeButtons();
+    msg("V HLAVNÍM režimu se asistent chová jako sales a může vás navést k plné verzi.", "sys");
+  });
+
+  document.getElementById("sendLeadBtn").addEventListener("click", async () => {
+    const name = document.getElementById("leadName").value.trim();
+    const phone = document.getElementById("leadPhone").value.trim();
+    const email = document.getElementById("leadEmail").value.trim();
+    const note = document.getElementById("leadNote").value.trim();
+    const url = localStorage.getItem(LS.SITE_URL) || document.getElementById("siteUrl").value.trim();
+
+    const status = document.getElementById("leadStatus");
+    status.textContent = "";
+
+    if (!name || !phone || !email) {
+      status.textContent = "Prosím vyplňte jméno, telefon a e-mail.";
+      return;
+    }
+
+    status.textContent = "Odesílám…";
+
+    const payload = {
+      name, phone, email,
+      message: note ? `Pozn.: ${note}` : "",
+      url,
+      mode: "full_version_request",
+      source: "sales-chatbot-demo",
     };
 
-    const panel = document.getElementById("panel");
-    const openBtn = document.getElementById("openBtn");
-    const closeBtn = document.getElementById("closeBtn");
-
-    const homeView = document.getElementById("homeView");
-    const chatView = document.getElementById("chatView");
-
-    const modebar = document.getElementById("modebar");
-    const modeLine1 = document.getElementById("modeLine1");
-    const modeLine2 = document.getElementById("modeLine2");
-    const subTitle = document.getElementById("subTitle");
-
-    const tileFreeDemo = document.getElementById("tileFreeDemo");
-    const tileWhat = document.getElementById("tileWhat");
-    const tileAsk = document.getElementById("tileAsk");
-
-    const urlBox = document.getElementById("urlBox");
-    const urlInput = document.getElementById("urlInput");
-    const btnCreate = document.getElementById("btnCreate");
-
-    const overlay = document.getElementById("overlay");
-    const messages = document.getElementById("messages");
-    const chips = document.getElementById("chips");
-    const msgInput = document.getElementById("msgInput");
-    const sendBtn = document.getElementById("sendBtn");
-
-    function setLS(key, val){ localStorage.setItem(key, String(val)); }
-    function getLS(key, fallback=null){
-      const v = localStorage.getItem(key);
-      return (v === null || v === undefined) ? fallback : v;
-    }
-    function delLS(key){ localStorage.removeItem(key); }
-
-    function openPanel(){ panel.classList.add("open"); }
-    function closePanel(){ panel.classList.remove("open"); }
-
-    openBtn.addEventListener("click", openPanel);
-    closeBtn.addEventListener("click", closePanel);
-
-    // Basic util
-    function normalizeDomain(input){
-      if(!input) return "";
-      let s = input.trim();
-      s = s.replace(/^https?:\/\//i, "");
-      s = s.replace(/^www\./i, "");
-      s = s.split("/")[0].trim();
-      return s;
-    }
-
-    function showView(which){
-      homeView.classList.toggle("on", which === "home");
-      chatView.classList.toggle("on", which === "chat");
-    }
-
-    function showModeBar(mode){
-      if(mode === "home"){
-        modebar.classList.remove("on");
-        subTitle.textContent = "Vyzkoušejte demo během pár sekund";
-        return;
-      }
-      modebar.classList.add("on");
-      const domain = getLS(LS.domain, "");
-      modeLine1.innerHTML = `🟢 <b>Demo AI chatbot pro vaši firmu</b>`;
-      modeLine2.textContent = domain ? `Odpovídá podle webu: ${domain}` : `Odpovídá podle vašeho webu`;
-      subTitle.textContent = "Pište dotazy jako zákazník";
-    }
-
-    function setOverlay(on){
-      overlay.classList.toggle("on", !!on);
-    }
-
-    function appendMessage(role, text){
-      const div = document.createElement("div");
-      div.className = `msg ${role === "user" ? "user" : "bot"}`;
-      div.textContent = text;
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
-      return div;
-    }
-
-    function appendNode(node){
-      messages.appendChild(node);
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    function clearMessages(){
-      messages.innerHTML = "";
-    }
-
-    function setChips(list){
-      chips.innerHTML = "";
-      if(!list || !list.length){
-        chips.style.display = "none";
-        return;
-      }
-      chips.style.display = "flex";
-      list.forEach(label => {
-        const c = document.createElement("div");
-        c.className = "chip";
-        c.textContent = label;
-        c.addEventListener("click", () => {
-          msgInput.value = label;
-          msgInput.focus();
-        });
-        chips.appendChild(c);
-      });
-    }
-
-    function resetDemoState(){
-      setLS(LS.mode, "home");
-      delLS(LS.domain);
-      delLS(LS.thread);
-      setLS(LS.qcount, "0");
-      delLS(LS.leadSent);
-      clearMessages();
-      setChips([]);
-      showModeBar("home");
-      showView("home");
-    }
-
-    // HOME actions
-    tileFreeDemo.addEventListener("click", () => {
-      urlBox.style.display = (urlBox.style.display === "none") ? "flex" : "none";
-      if(urlBox.style.display !== "none") urlInput.focus();
-    });
-
-    tileWhat.addEventListener("click", () => {
-      openPanel();
-      alert("Umí odpovídat 24/7, zrychlit komunikaci a automaticky sbírat poptávky. Pro personalizované demo zadejte URL webu.");
-    });
-
-    tileAsk.addEventListener("click", () => {
-      // Simple: jump to chat in "general demo" without domain
-      startDemoWithDomain("");
-    });
-
-    btnCreate.addEventListener("click", () => {
-      const domain = normalizeDomain(urlInput.value);
-      if(!domain){
-        alert("Zadejte prosím URL webu (např. dachmantechnik.cz).");
-        return;
-      }
-      startDemoWithDomain(domain);
-    });
-
-    urlInput.addEventListener("keydown", (e) => {
-      if(e.key === "Enter") btnCreate.click();
-    });
-
-    async function fetchWithTimeout(url, options={}, timeoutMs=30000){
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), timeoutMs);
-      try{
-        const res = await fetch(url, { ...options, signal: ctrl.signal });
-        return res;
-      } finally {
-        clearTimeout(t);
-      }
-    }
-
-    // Search backend (Assistants v2)
-    async function askBackend(userText){
-      const thread_id = getLS(LS.thread, "");
-      const payload = { message: userText };
-      if(thread_id) payload.thread_id = thread_id;
-
-      const res = await fetchWithTimeout("/.netlify/functions/search", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify(payload)
-      }, 45000);
-
-      const data = await res.json().catch(() => null);
-      if(!res.ok || !data || data.ok === false){
-        const msg = (data && (data.error || data.details)) ? (data.error || data.details) : `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-
-      if(data.thread_id){
-        setLS(LS.thread, data.thread_id);
-      }
-      return (data.answer || "").toString();
-    }
-
-    function maybeShowLeadBanner(){
-      const sent = getLS(LS.leadSent, "0") === "1";
-      if(sent) return;
-
-      const qcount = parseInt(getLS(LS.qcount, "0"), 10) || 0;
-      // show after 3 user messages
-      if(qcount < 3) return;
-
-      // ensure only once
-      if(document.getElementById("leadCard")) return;
-
-      const wrap = document.createElement("div");
-      wrap.className = "msg bot";
-      wrap.style.maxWidth = "100%";
-      wrap.style.background = "transparent";
-      wrap.style.border = "none";
-      wrap.style.padding = "0";
-
-      const card = document.createElement("div");
-      card.className = "leadcard";
-      card.id = "leadCard";
-
-      const h = document.createElement("div");
-      h.className = "lh";
-      h.textContent = "Chcete vidět, co zvládne plná verze?";
-
-      const t = document.createElement("div");
-      t.className = "lt";
-      t.textContent =
-        "Plná verze AI chatbota se učí vaše služby do detailu, odpovídá zákazníkům 24/7 a automaticky sbírá poptávky. Rádi vám ukážeme, jak by fungovala přímo pro vaši firmu.";
-
-      const grid = document.createElement("div");
-      grid.className = "leadgrid";
-
-      const name = document.createElement("input");
-      name.type = "text";
-      name.placeholder = "Jméno";
-      name.id = "leadName";
-
-      const phone = document.createElement("input");
-      phone.type = "tel";
-      phone.placeholder = "Telefon";
-      phone.id = "leadPhone";
-
-      const email = document.createElement("input");
-      email.type = "email";
-      email.placeholder = "E-mail";
-      email.id = "leadEmail";
-
-      grid.appendChild(name);
-      grid.appendChild(phone);
-      grid.appendChild(email);
-
-      const actions = document.createElement("div");
-      actions.className = "leadactions";
-
-      const btn = document.createElement("button");
-      btn.className = "btn primary";
-      btn.textContent = "👉 Chci vidět plnou verzi";
-      btn.addEventListener("click", async () => {
-        const vName = (name.value || "").trim();
-        const vPhone = (phone.value || "").trim();
-        const vEmail = (email.value || "").trim();
-
-        if(!vName || !vPhone || !vEmail){
-          appendMessage("bot", "Prosím doplňte jméno, telefon i e-mail 🙂");
-          return;
-        }
-        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vEmail)){
-          appendMessage("bot", "E-mail nevypadá správně, zkuste ho prosím upravit.");
-          return;
-        }
-
-        const domain = getLS(LS.domain, "") || "";
-        const message = `Plná verze – žádost o ukázku | Web: ${domain || "(nezadán)"} | Kontext: demo`;
-
-        btn.disabled = true;
-        btn.textContent = "Odesílám…";
-
-        try{
-          const res = await fetchWithTimeout("/.netlify/functions/lead", {
-            method:"POST",
-            headers:{ "Content-Type":"application/json" },
-            body: JSON.stringify({
-              name: vName,
-              phone: vPhone,
-              email: vEmail,
-              message
-            })
-          }, 45000);
-
-          const data = await res.json().catch(() => null);
-          if(!res.ok || !data || data.ok === false){
-            const err = (data && (data.error || data.details)) ? (data.error || data.details) : `HTTP ${res.status}`;
-            throw new Error(err);
-          }
-
-          setLS(LS.leadSent, "1");
-          card.innerHTML = `<div class="oktoast">✅ Díky! Ozveme se vám a ukážeme, jak by chatbot fungoval v plné verzi přímo pro vaši firmu.</div>`;
-        } catch(e){
-          card.insertAdjacentHTML("beforeend", `<div class="errtoast" style="margin-top:10px;">❌ Nepodařilo se odeslat. Zkuste to prosím znovu za chvíli.</div>`);
-          btn.disabled = false;
-          btn.textContent = "👉 Chci vidět plnou verzi";
-        }
-      });
-
-      const micro = document.createElement("div");
-      micro.className = "smallnote";
-      micro.style.marginTop = "8px";
-      micro.textContent = "Nezávazně. Bez jakýchkoliv povinností.";
-
-      actions.appendChild(btn);
-
-      card.appendChild(h);
-      card.appendChild(t);
-      card.appendChild(grid);
-      card.appendChild(actions);
-      card.appendChild(micro);
-
-      wrap.appendChild(card);
-      appendNode(wrap);
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    function seedDemoIntro(domain){
-      clearMessages();
-
-      if(domain){
-        appendMessage("bot",
-          `✅ Hotovo.\nTady je ukázkový AI chatbot pro vaši firmu (${domain}).\nVyzkoušejte, jak odpovídá zákazníkům.`
-        );
+    try {
+      const r = await sendLead(payload);
+      if (r && r.ok) {
+        status.textContent = "Hotovo ✅ Ozveme se vám s návrhem plné verze.";
+        msg("Děkuji! Kontakt mám uložený. Pokud chcete, můžete mi sem ještě napsat, co přesně má plná verze umět.", "bot");
+        setMode("sales");
+        updateModeButtons();
       } else {
-        appendMessage("bot",
-          `Dobrý den, jsem demo AI asistent.\nPro personalizovanou ukázku zadejte URL vašeho webu.`
-        );
+        status.textContent = "Nepodařilo se odeslat. Zkuste to prosím znovu.";
       }
-
-      appendMessage("bot",
-        "Dobrý den, jsem AI asistent vaší firmy.\nPtejte se jako zákazník – ceny, termíny, postup nebo služby."
-      );
-
-      setChips([
-        "Kolik to stojí?",
-        "Jak probíhá spolupráce?",
-        "Kdy můžete přijet?",
-        "Chci nezávaznou poptávku"
-      ]);
+    } catch (e) {
+      status.textContent = "Chyba: " + (e.message || e);
     }
+  });
 
-    async function startDemoWithDomain(domain){
-      // Set mode and show chat view immediately (no scrolling madness)
-      setLS(LS.mode, "demo");
-      setLS(LS.domain, domain);
-      setLS(LS.qcount, "0");
-      delLS(LS.leadSent);
+  // init
+  (function init() {
+    const savedUrl = localStorage.getItem(LS.SITE_URL) || "";
+    if (savedUrl) document.getElementById("siteUrl").value = savedUrl;
 
-      // reset thread for new domain demo
-      delLS(LS.thread);
+    const company = localStorage.getItem(LS.COMPANY) || "";
+    if (savedUrl) setBannerReady(company, savedUrl);
+    else setBannerDefault();
 
-      showView("chat");
-      showModeBar("demo");
-      setOverlay(true);
-
-      // optional perceived latency + parallel prep
-      const minDelay = new Promise(r => setTimeout(r, 1600));
-
-      // You can optionally pre-warm assistant here, but not required.
-      // We'll just wait for minDelay so people feel informed.
-      await minDelay;
-
-      setOverlay(false);
-      showModeBar("demo");
-      seedDemoIntro(domain);
-      msgInput.focus();
-    }
-
-    // Sending message
-    async function handleSend(){
-      const text = (msgInput.value || "").trim();
-      if(!text) return;
-      msgInput.value = "";
-      msgInput.focus();
-
-      appendMessage("user", text);
-
-      // Count user questions for lead banner trigger (only in demo mode)
-      const mode = getLS(LS.mode, "home");
-      if(mode === "demo"){
-        const qcount = (parseInt(getLS(LS.qcount, "0"), 10) || 0) + 1;
-        setLS(LS.qcount, String(qcount));
-      }
-
-      // Loading indicator
-      const loading = appendMessage("bot", "Generuje se odpověď…");
-
-      try{
-        const answer = await askBackend(text);
-        loading.textContent = answer || "Hm, tady teď nemám jistou odpověď. Zkuste to prosím upřesnit.";
-      } catch(e){
-        loading.textContent = "Omlouvám se, teď se mi nepodařilo odpovědět. Zkuste to prosím znovu.";
-      }
-
-      // Lead banner after a few Qs
-      maybeShowLeadBanner();
-    }
-
-    sendBtn.addEventListener("click", handleSend);
-    msgInput.addEventListener("keydown", (e) => {
-      if(e.key === "Enter") handleSend();
-    });
-
-    // Restore state on load
-    function restore(){
-      const mode = getLS(LS.mode, "home");
-
-      if(mode === "demo"){
-        showView("chat");
-        showModeBar("demo");
-        const domain = getLS(LS.domain, "");
-        seedDemoIntro(domain);
-        // If user already asked questions, show lead card if needed
-        maybeShowLeadBanner();
-      } else {
-        resetDemoState();
-        urlBox.style.display = "none";
-      }
-    }
-
-    // For quick manual reset (optional): double click subtitle to reset
-    subTitle.addEventListener("dblclick", () => {
-      if(confirm("Resetovat demo stav?")){
-        resetDemoState();
-      }
-    });
-
-    restore();
-  </script>
+    msg("Ahoj 👋 Zadejte URL webu a klikněte na „Vytvořit demo“. Pak se ptejte jako zákazník.", "bot");
+  })();
+</script>
 </body>
 </html>

@@ -3,166 +3,647 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sales Chatbot Demo</title>
+  <title>AI chatbot – ukázka</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; }
-    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    input { padding:10px; min-width: 320px; }
-    button { padding:10px 14px; cursor:pointer; }
-    .box { border:1px solid #ddd; border-radius:10px; padding:12px; margin-top:14px; }
-    .muted { opacity:.7; }
-    .msg { padding:8px 10px; border-radius:10px; margin:6px 0; max-width: 900px; white-space: pre-wrap; }
-    .me { background:#eef; }
-    .ai { background:#efe; }
-    .err { background:#fee; }
+    :root{
+      --bg:#0b0f19;
+      --stroke:rgba(255,255,255,.10);
+      --text:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.68);
+      --accent:#ff4fd8;
+      --accent2:#9b5cff;
+      --ok:#3ee07a;
+      --warn:#ffcc66;
+    }
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(255,79,216,.18), transparent 60%),
+                  radial-gradient(900px 500px at 90% 30%, rgba(155,92,255,.18), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      display:flex;align-items:center;justify-content:center;
+      padding:18px;
+    }
+    .wrap{width:min(560px, 100%)}
+    .widget{
+      border:1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(18,24,39,.96), rgba(10,14,24,.96));
+      border-radius:18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .top{
+      display:flex;gap:12px;align-items:center;
+      padding:14px 14px 10px 14px;
+      border-bottom:1px solid var(--stroke);
+    }
+    .logo{
+      width:34px;height:34px;border-radius:12px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,79,216,.95), rgba(155,92,255,.95));
+      display:flex;align-items:center;justify-content:center;
+      font-weight:800;
+      box-shadow: 0 10px 30px rgba(255,79,216,.18);
+      flex:0 0 auto;
+    }
+    .title{line-height:1.05}
+    .title b{display:block;font-size:14px}
+    .title span{display:block;font-size:12px;color:var(--muted)}
+    .badge{
+      margin-left:auto;
+      font-size:11px;color:var(--muted);
+      border:1px solid var(--stroke);
+      padding:6px 10px;border-radius:999px;
+      background: rgba(255,255,255,.04);
+    }
+
+    .chat{
+      padding:12px;
+      display:flex;flex-direction:column;gap:10px;
+      max-height:64vh; overflow:auto;
+      scroll-behavior:smooth;
+    }
+    .msg{
+      max-width:92%;
+      padding:10px 12px;
+      border-radius:16px;
+      border:1px solid var(--stroke);
+      white-space:pre-wrap;
+      word-break:break-word;
+      background: rgba(255,255,255,.04);
+    }
+    .bot{align-self:flex-start}
+    .user{align-self:flex-end;background: rgba(62,224,122,.10); border-color: rgba(62,224,122,.20)}
+    .hint{color:var(--muted); font-size:12px}
+    .tiny{color:rgba(255,255,255,.55); font-size:11px}
+
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+    .tile{
+      border:1px solid rgba(255,79,216,.35);
+      background: linear-gradient(180deg, rgba(255,79,216,.10), rgba(155,92,255,.06));
+      border-radius:16px;padding:12px;cursor:pointer;user-select:none;
+      transition: transform .08s ease, filter .08s ease;
+      min-height:74px;
+    }
+    .tile:hover{transform:translateY(-1px); filter:brightness(1.06)}
+    .tile .k{display:flex; align-items:center; gap:10px; margin-bottom:6px}
+    .ico{
+      width:32px;height:32px;border-radius:12px;
+      background: rgba(255,79,216,.18);
+      border:1px solid rgba(255,79,216,.25);
+      display:flex;align-items:center;justify-content:center;
+      font-weight:800;
+    }
+    .tile b{font-size:13px}
+    .tile span{display:block; font-size:12px; color:var(--muted); margin-top:2px}
+    .tile.full{grid-column:1 / -1}
+
+    .list{margin:6px 0 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+    .list li{display:flex;gap:10px;align-items:flex-start;color:var(--muted);font-size:13px}
+    .check{
+      width:18px;height:18px;border-radius:7px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.05);
+      display:flex;align-items:center;justify-content:center;
+      color: var(--ok);font-weight:900;flex:0 0 auto;margin-top:1px;
+    }
+
+    .demoCard{border:1px solid rgba(255,255,255,.12);background: rgba(255,255,255,.04);border-radius:16px;padding:12px}
+    .demoTitle{font-weight:800;margin:0 0 8px 0;font-size:13px}
+    .demoSub{color:var(--muted);font-size:12px;margin:0 0 10px 0}
+    .demoBox{border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;background: rgba(0,0,0,.14);margin-top:10px}
+    .demoBox b{display:block;font-size:12px;margin-bottom:6px}
+    .miniActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .chip{
+      border:1px solid rgba(255,79,216,.35);
+      background: rgba(255,79,216,.10);
+      padding:7px 10px;border-radius:999px;font-size:12px;cursor:pointer;user-select:none;
+    }
+    .chip:hover{filter:brightness(1.08)}
+
+    .row{display:flex;gap:10px;padding:12px;border-top:1px solid var(--stroke);background: rgba(0,0,0,.12)}
+    input{
+      flex:1;padding:12px;border-radius:14px;border:1px solid var(--stroke);
+      background: rgba(255,255,255,.04);color: var(--text);outline:none;font-size:14px
+    }
+    input::placeholder{color:rgba(255,255,255,.45)}
+    button{
+      padding:12px 14px;border-radius:14px;border:1px solid rgba(255,79,216,.35);
+      background: linear-gradient(90deg, rgba(255,79,216,.95), rgba(155,92,255,.95));
+      color:#fff;font-weight:800;cursor:pointer
+    }
+    button:disabled{opacity:.6; cursor:not-allowed}
+    .foot{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px 12px;color:rgba(255,255,255,.55);font-size:11px}
+    .pill{border:1px solid var(--stroke);padding:6px 10px;border-radius:999px;background: rgba(255,255,255,.04)}
   </style>
 </head>
 <body>
+<div class="wrap">
+  <div class="widget">
+    <div class="top">
+      <div class="logo">AI</div>
+      <div class="title">
+        <b>AI Chatbot</b>
+        <span>Ukázka zdarma • rychlé vyzkoušení</span>
+      </div>
+      <div class="badge" id="modeBadge">menu</div>
+    </div>
 
-  <h2>DEMO ukázka pro web</h2>
+    <div id="chat" class="chat"></div>
 
-  <div class="row">
-    <input id="url" placeholder="Zadejte URL (např. https://www.dachmantechnik.cz)" />
-    <button onclick="createDemo()">Vytvořit demo</button>
-    <button onclick="resetAll()">Reset</button>
-  </div>
-
-  <div id="status" class="box muted">Zadejte URL a klikněte na „Vytvořit demo“.</div>
-
-  <div class="box">
     <div class="row">
-      <strong>Režim:</strong>
-      <button onclick="setMode('demo')">DEMO</button>
-      <button onclick="setMode('main')">HLAVNÍ</button>
-      <span id="modeLabel" class="muted"></span>
+      <input id="input" placeholder="Napište zprávu…" autocomplete="off">
+      <button id="send">Odeslat</button>
+    </div>
+
+    <div class="foot">
+      <span class="pill" id="status">připraveno</span>
+      <span class="pill">powered by demo</span>
     </div>
   </div>
-
-  <div class="box" id="banner" style="display:none;"></div>
-
-  <div class="box">
-    <div id="chat"></div>
-    <div class="row" style="margin-top:10px;">
-      <input id="msg" placeholder="Napište dotaz..." />
-      <button onclick="sendChat()">Odeslat</button>
-    </div>
-  </div>
+</div>
 
 <script>
-  let mode = "demo";
-  let threadIdDemo = null;
-  let threadIdMain = null;
+const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-  let siteContext = "";
-  let companyName = "";
+/* THREAD */
+const THREAD_KEY_DEMO = "demo_chatbot_thread_id";
+const getThreadId = () => localStorage.getItem(THREAD_KEY_DEMO) || "";
+const setThreadId = id => id && localStorage.setItem(THREAD_KEY_DEMO, id);
+const resetThread = () => localStorage.removeItem(THREAD_KEY_DEMO);
 
-  function el(id){ return document.getElementById(id); }
+/* STATE */
+const STATE_KEY = "sales_demo_state_v3";
+const CONTEXT_KEY = "sales_demo_homepage_context_v1";
 
-  function setMode(m){
-    mode = m;
-    el("modeLabel").textContent = mode === "demo" ? " (DEMO – odpovědi podle obsahu webu)" : " (HLAVNÍ – sales režim)";
-    addSystem(mode === "demo" ? "Přepnuto na DEMO asistenta." : "Přepnuto na HLAVNÍHO asistenta.");
+const defaultState = () => ({
+  mode: "menu",       // menu | url | chat
+  url: "",
+  urlSaved: false,
+  demoShown: false,
+  contextReady: false,
+});
+let state = loadState();
+
+function loadState(){
+  try{
+    const s = JSON.parse(localStorage.getItem(STATE_KEY) || "null");
+    if(!s || typeof s !== "object") return defaultState();
+    return { ...defaultState(), ...s };
+  }catch{ return defaultState(); }
+}
+function saveState(){ localStorage.setItem(STATE_KEY, JSON.stringify(state)); }
+function resetState(){
+  state = defaultState();
+  localStorage.removeItem(STATE_KEY);
+  localStorage.removeItem(CONTEXT_KEY);
+  setMode("menu");
+}
+
+/* UI */
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("send");
+const statusEl = document.getElementById("status");
+const modeBadge = document.getElementById("modeBadge");
+
+function setStatus(t){ statusEl.textContent = t; }
+function setMode(m){
+  state.mode = m; saveState();
+  modeBadge.textContent = m;
+  input.placeholder = (m==="url") ? "www.vas-web.cz" : "Napište zprávu…";
+}
+function scrollBottom(){
+  requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; });
+  setTimeout(()=>{ chat.scrollTop = chat.scrollHeight; }, 60);
+}
+function add(role, htmlOrText, asHtml=false){
+  const d = document.createElement("div");
+  d.className = "msg " + (role==="user" ? "user" : "bot");
+  if(asHtml) d.innerHTML = htmlOrText;
+  else d.textContent = htmlOrText;
+  chat.appendChild(d);
+  scrollBottom();
+}
+function addHint(text){
+  const p = document.createElement("div");
+  p.className = "hint";
+  p.textContent = text;
+  chat.appendChild(p);
+  scrollBottom();
+}
+function addTiny(text){
+  const p = document.createElement("div");
+  p.className = "tiny";
+  p.textContent = text;
+  chat.appendChild(p);
+  scrollBottom();
+}
+
+/* HELPERS */
+function normalizeUrl(u){
+  let s = String(u||"").trim().replace(/\s+/g,"");
+  if(!s) return "";
+  if(!/^https?:\/\//i.test(s)) s = "https://" + s;
+  return s;
+}
+function looksValidUrl(u){
+  const s = String(u||"").trim();
+  return !!(s && s.length>=6 && !/\s/.test(s) && s.includes("."));
+}
+function prettyDomain(url){
+  return String(url).replace(/^https?:\/\//i,"").replace(/\/+$/,"");
+}
+
+/* BACKEND CALLS */
+async function saveUrlToSheets(url){
+  const payload = { name:"", phone:"", email:"", message:`Ukázka | URL: ${url} | Source: widget` };
+  const r = await fetch("/.netlify/functions/lead",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify(payload)
+  });
+  const txt = await r.text();
+  return { ok:r.ok, raw:txt };
+}
+
+/* SCRAPE (homepage only) */
+function getContext(){ return localStorage.getItem(CONTEXT_KEY) || ""; }
+function setContext(text){
+  localStorage.setItem(CONTEXT_KEY, text || "");
+  state.contextReady = !!(text && text.length > 50);
+  saveState();
+}
+async function scrapeHomepage(url){
+  // Očekáváme, že máš scrape.mjs na /.netlify/functions/scrape
+  // a že přijme { url } a vrátí { ok:true, text:"..." } nebo { text:"..." }
+  const r = await fetch("/.netlify/functions/scrape",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify({ url })
+  });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error || "Scrape failed");
+  const text = String(d.text || d.content || d.body || "");
+  if(!text) throw new Error("Scrape returned empty text");
+  return text;
+}
+
+/* DEMO AI */
+async function askDemoAI(text){
+  const context = getContext();
+  const r = await fetch("/.netlify/functions/search-demo",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify({
+      message:text,
+      thread_id:getThreadId(),
+      context,
+      site_url: state.url || ""
+    })
+  });
+  const d = await r.json().catch(()=>({}));
+  if(d.thread_id) setThreadId(d.thread_id);
+  if(!d.ok) throw new Error(d.error || "search-demo failed");
+  return d.answer || "";
+}
+
+/* MINI DEMO (lokální ukázka) */
+function buildDemoFromContext(){
+  const raw = getContext();
+  const domain = prettyDomain(state.url || "");
+  const snippet = raw.slice(0, 600).replace(/\s+/g," ").trim();
+
+  // velmi jednoduchá heuristika – jen aby to vypadalo „na míru“
+  const lower = raw.toLowerCase();
+  const hasEshop = lower.includes("košík") || lower.includes("doprava") || lower.includes("platba") || lower.includes("produkt");
+  const hasBooking = lower.includes("rezerv") || lower.includes("objednat") || lower.includes("termín") || lower.includes("kalendář");
+
+  let typeLabel = "služby";
+  if(hasEshop) typeLabel = "e-shop";
+  if(hasBooking) typeLabel = "rezervace / služby";
+
+  return {
+    title: "Mini ukázka (okamžitý náhled)",
+    sub: `Vychází z obsahu homepage (${typeLabel}).`,
+    bullets: [
+      "Odpovídá na časté dotazy (cena, termín, postup, služby)",
+      "Navede uživatele na správnou stránku / kontakt",
+      "Sbírá poptávky 24/7 a šetří čas na telefonu"
+    ],
+    qas: [
+      {q:"Co nabízíte a jak to funguje?", a:"Chatbot shrne služby a vysvětlí postup v několika krocích."},
+      {q:"Kolik to stojí?", a:"Chatbot si řekne o pár detailů a dá orientační rámec / odkaz na ceník."},
+      {q:"Jak rychle to umíte?", a:"Chatbot navrhne další krok a doptá se na termín/lokalitu."},
+    ],
+    flow: ["Co řešíte (stručně)", "Upřesnění (lokalita / rozsah)", "Kontakt pro domluvu"],
+    snippet,
+    domain
+  };
+}
+
+function renderDemoPreview(){
+  if(!state.url){
+    add("bot","Nejdřív prosím zadejte URL webu (Získat ukázku zdarma).");
+    return;
   }
+  const c = buildDemoFromContext();
+  const bulletsHtml = c.bullets.map(t => `<li><span class="check">✓</span><span>${t}</span></li>`).join("");
 
-  function addMsg(text, cls="ai"){
-    const d = document.createElement("div");
-    d.className = "msg " + cls;
-    d.textContent = text;
-    el("chat").appendChild(d);
-    window.scrollTo(0, document.body.scrollHeight);
+  const qaHtml = c.qas.map(x => `
+    <li style="margin-bottom:10px">
+      <b style="display:block;color:rgba(255,255,255,.90);font-size:12px;margin-bottom:2px">❓ ${x.q}</b>
+      <span style="color:rgba(255,255,255,.68);font-size:12.5px">💬 ${x.a}</span>
+    </li>`).join("");
+
+  const flowHtml = c.flow.map(s => `<li>${s}</li>`).join("");
+
+  const html = `
+    <div class="demoCard">
+      <div class="demoTitle">Ukázka pro web: ${c.domain}</div>
+      <div class="demoSub">${c.title} • ${c.sub}</div>
+
+      <div class="demoBox">
+        <b>Co by chatbot u vás dělal</b>
+        <ul class="list">${bulletsHtml}</ul>
+      </div>
+
+      <div class="demoBox">
+        <b>3 příklady dotazů a odpovědí</b>
+        <ul style="margin:0;padding-left:16px">${qaHtml}</ul>
+      </div>
+
+      <div class="demoBox">
+        <b>Ukázka sběru poptávky (flow)</b>
+        <ul style="margin:0;padding-left:16px;color:rgba(255,255,255,.68);font-size:12.5px">${flowHtml}</ul>
+      </div>
+
+      <div class="demoBox">
+        <b>Výřez z homepage (pro demo AI)</b>
+        <div style="color:rgba(255,255,255,.68);font-size:12.5px;line-height:1.35">
+          ${c.snippet ? c.snippet : "<i>(zatím nemám text z homepage)</i>"}
+        </div>
+      </div>
+
+      <div class="miniActions">
+        <span class="chip" data-demo="ask">Zeptejte se AI na váš web</span>
+        <span class="chip" data-demo="support">Podpora (reklamace, návody…)</span>
+        <span class="chip" data-demo="sales">Sběr poptávek</span>
+      </div>
+    </div>
+  `;
+
+  add("bot", html, true);
+
+  const last = chat.lastElementChild;
+  last.querySelectorAll("[data-demo]").forEach(el=>{
+    el.addEventListener("click", ()=>handleDemoChip(el.dataset.demo));
+  });
+
+  state.demoShown = true;
+  saveState();
+
+  add("bot","Teď se mě klidně zeptejte na cokoli ohledně vašeho webu – odpovím podle homepage (DEMO).");
+}
+
+function handleDemoChip(which){
+  if(which==="support"){
+    add("bot","Jasně — napište, jaké dotazy řešíte nejčastěji v podpoře (reklamace, návody, objednávky…) a ukážu návrh.");
+    setMode("chat");
+    return;
   }
-
-  function addSystem(text){ addMsg(text, "ai"); }
-  function addError(text){ addMsg(text, "err"); }
-
-  function resetAll(){
-    threadIdDemo = null;
-    threadIdMain = null;
-    siteContext = "";
-    companyName = "";
-    el("chat").innerHTML = "";
-    el("banner").style.display = "none";
-    el("status").textContent = "Reset hotový. Zadejte URL a klikněte na „Vytvořit demo“.";
+  if(which==="sales"){
+    add("bot","Pro sběr poptávek: napište, co chcete nejvíc prodávat / nabízet, a navrhnu krátký poptávkový flow.");
+    setMode("chat");
+    return;
   }
+  if(which==="ask"){
+    setMode("chat");
+    add("bot","Jasně — zeptejte se (budu odpovídat podle homepage). 🙂");
+    return;
+  }
+}
 
-  async function createDemo(){
-    const url = el("url").value.trim();
-    if(!url){ alert("Zadejte URL"); return; }
+/* MENU */
+function renderMenu(){
+  const hasUrl = !!(state.urlSaved && state.url);
+  const hasCtx = !!(getContext() && getContext().length > 50);
 
-    el("status").textContent = "Připravuji pro vaši firmu AI chatbota na ukázku… načítám obsah webu.";
-    el("banner").style.display = "none";
-    siteContext = "";
-    companyName = "";
-    threadIdDemo = null; // nový demo thread
+  const html = `
+    <div><b>Naše chatboty využívají firmy napříč obory.</b><br>
+      <span style="color:rgba(255,255,255,.68)">Vyberte, co chcete udělat:</span>
+    </div>
 
-    try{
-      const r = await fetch("/.netlify/functions/siteinfo", {
-        method: "POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify({ url })
-      });
-      const j = await r.json();
-      if(!j.ok) throw new Error(j.error + (j.details ? " | " + j.details : ""));
+    <div class="grid" style="margin-top:10px">
+      <div class="tile" data-action="demo">
+        <div class="k">
+          <div class="ico">▶</div>
+          <div><b>Získat ukázku zdarma</b><span>Proklik až k zadání URL</span></div>
+        </div>
+      </div>
 
-      companyName = j.companyName || "Vaše firma";
-      siteContext = j.summary || "";
+      <div class="tile" data-action="what">
+        <div class="k">
+          <div class="ico">⚙</div>
+          <div><b>Co umí chatbot?</b><span>Rychlý přehled funkcí</span></div>
+        </div>
+      </div>
 
-      // Banner, který chceš (krátký, jasný)
-      el("banner").style.display = "block";
-      el("banner").textContent =
-        `Dobrý den, jsem AI asistent firmy ${companyName}.\n` +
-        `Ptejte se mě jako typický zákazník.\n` +
-        `Pozn.: Je to DEMO – plná verze umí znát detaily (služby, ceník, termíny) a dá se vyladit na míru.`;
+      <div class="tile full" data-action="ask">
+        <div class="k">
+          <div class="ico">?</div>
+          <div><b>Zeptejte se AI</b><span>Napište libovolný dotaz</span></div>
+        </div>
+      </div>
 
-      el("status").textContent = "Hotovo. Můžete se ptát – DEMO odpovědi budou vycházet z obsahu webu.";
-      setMode("demo");
+      ${hasUrl ? `
+        <div class="tile full" data-action="show_demo">
+          <div class="k">
+            <div class="ico">${hasCtx ? "✓" : "!"}</div>
+            <div>
+              <b>Zobrazit ukázku pro uložené URL</b>
+              <span>${prettyDomain(state.url)} ${hasCtx ? "• kontext OK" : "• chybí scrape"}</span>
+            </div>
+          </div>
+        </div>
+      ` : ``}
+    </div>
+  `;
+  add("bot", html, true);
 
-    } catch(e){
-      el("status").textContent = "Nepodařilo se načíst web. Zkuste jinou URL nebo pošlete web, který selhal.";
-      addError("Chyba při načtení webu: " + e.message);
+  const last = chat.lastElementChild;
+  last.querySelectorAll("[data-action]").forEach(el=>{
+    el.addEventListener("click", ()=>handleMenuAction(el.dataset.action));
+  });
+}
+
+function renderCapabilities(){
+  const html = `
+    <div><b>Chatbot je multifunkční nástroj pro podporu prodeje i zákaznické podpory.</b><br>
+      <span style="color:rgba(255,255,255,.68)">Podívejte se, co všechno zvládne:</span>
+    </div>
+    <ul class="list">
+      <li><span class="check">✓</span><span>Odpovídá na dotazy (FAQ, produkty, služby)</span></li>
+      <li><span class="check">✓</span><span>Sbírá poptávky a kvalifikuje zájemce</span></li>
+      <li><span class="check">✓</span><span>Pomůže se zákaznickou podporou (návody, reklamace, navigace)</span></li>
+      <li><span class="check">✓</span><span>Doporučí službu / produkt podle potřeb</span></li>
+      <li><span class="check">✓</span><span>Umí se učit z podkladů firmy (knowledge base)</span></li>
+    </ul>
+  `;
+  add("bot", html, true);
+}
+
+function handleMenuAction(action){
+  if(action==="demo"){
+    setMode("url");
+    add("bot","Ukázku připravíme přímo pro váš web. Jaké jsou vaše stránky?");
+    addHint("Tip: stačí doména (např. muj-web.cz).");
+    input.focus();
+    return;
+  }
+  if(action==="what"){ renderCapabilities(); return; }
+  if(action==="ask"){ setMode("chat"); add("bot","Jasně — zeptejte se. 🙂"); input.focus(); return; }
+  if(action==="show_demo"){
+    setMode("chat");
+    // když chybí kontext, zkusíme ho udělat znovu automaticky
+    if(!getContext()){
+      add("bot","Nemám ještě text z homepage. Zkusím ho stáhnout…");
+      (async ()=>{
+        try{
+          setStatus("stahuji homepage…");
+          const txt = await scrapeHomepage(state.url);
+          setContext(txt);
+          add("bot","Hotovo — homepage mám načtenou. ✅");
+          renderDemoPreview();
+        }catch(e){
+          add("bot","Nepodařilo se stáhnout homepage. Zkuste prosím znovu nebo pošlete URL ještě jednou.");
+          if(DEBUG) add("bot","DEBUG scrape error: "+String(e));
+        }finally{
+          setStatus("připraveno");
+        }
+      })();
+      return;
     }
+    renderDemoPreview();
+    return;
+  }
+}
+
+/* INTENT: “ukaž ukázku” */
+function isAskingForDemo(text){
+  const t = String(text||"").toLowerCase();
+  return t.includes("ukazk") || t.includes("ukázk") || t.includes("nahled") || t.includes("náhled");
+}
+
+/* SEND */
+async function send(){
+  const t = input.value.trim();
+  if(!t) return;
+
+  if(t.toLowerCase()==="reset"){
+    resetThread(); resetState();
+    chat.innerHTML = "";
+    init();
+    input.value = "";
+    return;
   }
 
-  async function sendChat(){
-    const text = el("msg").value.trim();
-    if(!text) return;
-    el("msg").value = "";
-    addMsg(text, "me");
+  add("user", t);
+  input.value = "";
+  sendBtn.disabled = true;
 
-    // v DEMO režimu vyžadujeme siteContext
-    if(mode === "demo" && !siteContext){
-      addError("Nejdřív klikněte na „Vytvořit demo“ a načtěte web.");
+  try{
+    setStatus("pracuji…");
+
+    // lokální ukázka
+    if(isAskingForDemo(t) && state.urlSaved && state.url){
+      setMode("chat");
+      renderDemoPreview();
+      setStatus("připraveno");
       return;
     }
 
-    const thread_id = mode === "demo" ? threadIdDemo : threadIdMain;
+    // URL mode → uložit do Sheets + scrape + ukázka
+    if(state.mode==="url"){
+      if(!looksValidUrl(t)){
+        add("bot","Tohle nevypadá jako URL. Zkuste prosím třeba „muj-web.cz“ nebo „www.muj-web.cz“.");
+        setStatus("čekám na URL");
+        return;
+      }
 
-    try{
-      const r = await fetch("/.netlify/functions/search", {
-        method: "POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify({
-          message: text,
-          thread_id,
-          mode,
-          site_context: mode === "demo" ? siteContext : undefined
-        })
-      });
-      const j = await r.json();
-      if(!j.ok) throw new Error(j.error + (j.details ? " | " + j.details : ""));
+      const url = normalizeUrl(t);
+      state.url = url;
+      saveState();
 
-      if(mode === "demo") threadIdDemo = j.thread_id;
-      else threadIdMain = j.thread_id;
+      // 1) uložit do Sheets
+      const r = await saveUrlToSheets(url);
+      if(!r.ok){
+        if(DEBUG) add("bot","Chyba ukládání do Sheets:\n"+r.raw);
+        add("bot","Omlouvám se, nepodařilo se to uložit. Zkuste to prosím znovu.");
+        setStatus("chyba ukládání");
+        return;
+      }
+      state.urlSaved = true;
+      saveState();
+      add("bot","Děkuji — URL mám uložené. ✅");
 
-      addMsg(j.answer || "…", "ai");
-    } catch(e){
-      addError("Chyba: " + e.message);
+      // 2) scrape homepage
+      add("bot","Ještě si rychle načtu homepage, ať ukázka odpovídá vašemu webu…");
+      setStatus("stahuji homepage…");
+      const txt = await scrapeHomepage(url);
+      setContext(txt);
+      add("bot","Hotovo — homepage mám načtenou. ✅");
+
+      // 3) ukázka + přepnutí do chatu
+      setMode("chat");
+      renderDemoPreview();
+      setStatus("připraveno");
+      return;
     }
+
+    // chat/menu → DEMO AI odpověď (podle homepage)
+    setMode("chat");
+
+    // pokud nemáme context, upozorni
+    if(!getContext() && state.url){
+      add("bot","⚠️ Nemám načtenou homepage, odpovím obecně. (Zkuste „Zobrazit ukázku“ pro znovunačtení.)");
+    }
+
+    const ans = await askDemoAI(t);
+    add("bot", ans);
+    setStatus("připraveno");
+
+  }catch(e){
+    if(DEBUG) add("bot","❌ Chyba:\n"+String(e));
+    add("bot","Omlouvám se, něco se nepovedlo. Zkuste to prosím znovu.");
+    setStatus("chyba");
+  }finally{
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+/* EVENTS */
+sendBtn.onclick = send;
+input.addEventListener("keydown", e => (e.key==="Enter") && send());
+
+/* INIT */
+function init(){
+  setStatus("připraveno");
+  setMode("menu");
+
+  if(state.urlSaved && state.url){
+    add("bot", `Vítejte zpět 👋 Máte uložené URL: ${prettyDomain(state.url)}`);
+    if(getContext()) addTiny("Kontekst homepage je načtený ✅");
+    else addTiny("Kontekst homepage není načtený (lze dohrát přes „Zobrazit ukázku…“) ");
+  } else {
+    add("bot","Dobrý den 👋");
   }
 
-  // init
-  setMode("demo");
+  renderMenu();
+}
+init();
 </script>
-
 </body>
 </html>

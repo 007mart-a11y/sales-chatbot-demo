@@ -122,34 +122,6 @@
     }
     .chip:hover{filter:brightness(1.08)}
 
-    /* ✅ NOVÉ: banner + štítek ukázky */
-    .banner{
-      border:1px solid rgba(255,255,255,.14);
-      background: linear-gradient(90deg, rgba(255,79,216,.14), rgba(155,92,255,.10));
-      border-radius:16px;
-      padding:12px;
-      margin-bottom:10px;
-    }
-    .banner b{display:block;font-size:13px;margin-bottom:4px}
-    .banner span{display:block;color:var(--muted);font-size:12px;line-height:1.35}
-    .tag{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(0,0,0,.16);
-      padding:6px 10px;
-      border-radius:999px;
-      color:rgba(255,255,255,.78);
-      font-size:11px;
-      margin-bottom:8px;
-    }
-    .tag i{
-      width:8px;height:8px;border-radius:99px;
-      background: rgba(255,79,216,.95);
-      display:inline-block;
-    }
-
     .row{display:flex;gap:10px;padding:12px;border-top:1px solid var(--stroke);background: rgba(0,0,0,.12)}
     input{
       flex:1;padding:12px;border-radius:14px;border:1px solid var(--stroke);
@@ -303,16 +275,27 @@ function setContext(text){
   state.contextReady = !!(text && text.length > 50);
   saveState();
 }
+
+/* ✅ FIX: robust scrape reader (text -> JSON if possible) */
 async function scrapeHomepage(url){
   const r = await fetch("/.netlify/functions/scrape",{
     method:"POST",
     headers:{ "content-type":"application/json" },
     body:JSON.stringify({ url })
   });
-  const d = await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(d.error || "Scrape failed");
-  const text = String(d.text || d.content || d.body || "");
-  if(!text) throw new Error("Scrape returned empty text");
+
+  const raw = await r.text(); // always text
+  let d = {};
+  try { d = JSON.parse(raw); } catch { d = { raw }; }
+
+  if(!r.ok){
+    throw new Error(d.error || d.details || ("Scrape failed: " + String(raw).slice(0,200)));
+  }
+
+  const text = String(d.text || d.content || d.body || d.raw || "");
+  if(!text || text.length < 50){
+    throw new Error("Scrape returned empty/short text: " + String(raw).slice(0,200));
+  }
   return text;
 }
 
@@ -339,10 +322,6 @@ async function askDemoAI(text){
 function buildDemoFromContext(){
   const raw = getContext();
   const domain = prettyDomain(state.url || "");
-
-  // název firmy (jednoduchá heuristika)
-  const company = domain ? domain.split(".")[0].toUpperCase() : "VAŠE FIRMA";
-
   const snippet = raw.slice(0, 600).replace(/\s+/g," ").trim();
 
   const lower = raw.toLowerCase();
@@ -354,8 +333,6 @@ function buildDemoFromContext(){
   if(hasBooking) typeLabel = "rezervace / služby";
 
   return {
-    company,
-    domain,
     title: "Mini ukázka (okamžitý náhled)",
     sub: `Vychází z obsahu homepage (${typeLabel}).`,
     bullets: [
@@ -369,50 +346,52 @@ function buildDemoFromContext(){
       {q:"Jak rychle to umíte?", a:"Chatbot navrhne další krok a doptá se na termín/lokalitu."},
     ],
     flow: ["Co řešíte (stručně)", "Upřesnění (lokalita / rozsah)", "Kontakt pro domluvu"],
-    snippet
+    snippet,
+    domain
   };
 }
 
-/* ✅ UPRAVENO: max 2 karty, bez výřezu homepage */
 function renderDemoPreview(){
   if(!state.url){
     add("bot","Nejdřív prosím zadejte URL webu (Získat ukázku zdarma).");
     return;
   }
-
   const c = buildDemoFromContext();
   const bulletsHtml = c.bullets.map(t => `<li><span class="check">✓</span><span>${t}</span></li>`).join("");
 
-  // krátká ukázka dotazů jako „chips“
-  const chips = [
-    "Kolik to stojí?",
-    "Jaký je postup?",
-    "Kdy máte termíny?",
-    "Jak vás kontaktovat?"
-  ].map(x => `<span class="chip" data-ask="${encodeURIComponent(x)}">${x}</span>`).join("");
+  const qaHtml = c.qas.map(x => `
+    <li style="margin-bottom:10px">
+      <b style="display:block;color:rgba(255,255,255,.90);font-size:12px;margin-bottom:2px">❓ ${x.q}</b>
+      <span style="color:rgba(255,255,255,.68);font-size:12.5px">💬 ${x.a}</span>
+    </li>`).join("");
+
+  const flowHtml = c.flow.map(s => `<li>${s}</li>`).join("");
 
   const html = `
     <div class="demoCard">
-      <div class="banner">
-        <b>Nový chatbot pro firmu ${c.company}</b>
-        <span>Nyní se můžete ptát svého demo chatbota – pro představu, jak by u vás odpovídal podle obsahu webu.</span>
-      </div>
-
-      <div class="tag"><i></i> Chatbot ukázka pro firmu ${c.company}</div>
-
       <div class="demoTitle">Ukázka pro web: ${c.domain}</div>
       <div class="demoSub">${c.title} • ${c.sub}</div>
 
-      <!-- KARTA 1 -->
       <div class="demoBox">
         <b>Co by chatbot u vás dělal</b>
         <ul class="list">${bulletsHtml}</ul>
       </div>
 
-      <!-- KARTA 2 -->
       <div class="demoBox">
-        <b>Zkuste ukázkové dotazy</b>
-        <div class="miniActions">${chips}</div>
+        <b>3 příklady dotazů a odpovědí</b>
+        <ul style="margin:0;padding-left:16px">${qaHtml}</ul>
+      </div>
+
+      <div class="demoBox">
+        <b>Ukázka sběru poptávky (flow)</b>
+        <ul style="margin:0;padding-left:16px;color:rgba(255,255,255,.68);font-size:12.5px">${flowHtml}</ul>
+      </div>
+
+      <div class="demoBox">
+        <b>Výřez z homepage (pro demo AI)</b>
+        <div style="color:rgba(255,255,255,.68);font-size:12.5px;line-height:1.35">
+          ${c.snippet ? c.snippet : "<i>(zatím nemám text z homepage)</i>"}
+        </div>
       </div>
 
       <div class="miniActions">
@@ -426,17 +405,6 @@ function renderDemoPreview(){
   add("bot", html, true);
 
   const last = chat.lastElementChild;
-
-  // chips → po kliknutí vloží dotaz do inputu a pošle
-  last.querySelectorAll("[data-ask]").forEach(el=>{
-    el.addEventListener("click", ()=>{
-      const q = decodeURIComponent(el.dataset.ask || "");
-      input.value = q;
-      setMode("chat");
-      send();
-    });
-  });
-
   last.querySelectorAll("[data-demo]").forEach(el=>{
     el.addEventListener("click", ()=>handleDemoChip(el.dataset.demo));
   });
@@ -556,7 +524,7 @@ function handleMenuAction(action){
           add("bot","Hotovo — homepage mám načtenou. ✅");
           renderDemoPreview();
         }catch(e){
-          add("bot","Nepodařilo se stáhnout homepage. Zkuste prosím znovu nebo pošlete URL ještě jednou.");
+          add("bot","Nepodařilo se stáhnout homepage. (Je to problém funkce /scrape, ne chatu.) Zkuste prosím znovu nebo pošlete URL ještě jednou.");
           if(DEBUG) add("bot","DEBUG scrape error: "+String(e));
         }finally{
           setStatus("připraveno");
@@ -626,9 +594,15 @@ async function send(){
 
       add("bot","Ještě si rychle načtu homepage, ať ukázka odpovídá vašemu webu…");
       setStatus("stahuji homepage…");
-      const txt = await scrapeHomepage(url);
-      setContext(txt);
-      add("bot","Hotovo — homepage mám načtenou. ✅");
+
+      try{
+        const txt = await scrapeHomepage(url);
+        setContext(txt);
+        add("bot","Hotovo — homepage mám načtenou. ✅");
+      }catch(e){
+        add("bot","Nepodařilo se stáhnout homepage. (Pro demo AI potřebuju funkci /scrape.) Můžete pokračovat i bez toho, ale odpovědi budou obecnější.");
+        if(DEBUG) add("bot","DEBUG scrape error: "+String(e));
+      }
 
       setMode("chat");
       renderDemoPreview();

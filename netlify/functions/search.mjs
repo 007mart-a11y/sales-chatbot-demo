@@ -1,48 +1,50 @@
 // netlify/functions/search.mjs
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-function j(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
-  });
-}
-
 export default async (request) => {
   try {
-    if (request.method === "OPTIONS") return new Response("", { status: 204, headers: corsHeaders });
+    // CORS (hodí se při lokálním testu / embed)
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "content-type",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "content-type": "application/json",
+    };
 
-    if (request.method !== "POST") {
-      return j({ ok: false, error: "Method not allowed" }, 405);
+    if (request.method === "OPTIONS") {
+      return new Response("", { status: 204, headers: corsHeaders });
     }
 
-    const { message, thread_id, mode, site_context } = await request.json();
-
-    if (!message || typeof message !== "string") {
-      return j({ ok: false, error: "Missing message" }, 400);
+    if (request.method !== "POST") {
+      return new Response(JSON.stringify({ ok: false, error: "Method not allowed" }), {
+        status: 405,
+        headers: corsHeaders,
+      });
     }
 
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-    const ASSISTANT_ID_MAIN = process.env.ASSISTANT_ID;
-    const ASSISTANT_ID_DEMO = process.env.ASSISTANT_ID_DEMO;
+    const ASSISTANT_ID = process.env.ASSISTANT_ID;
 
-    if (!OPENAI_API_KEY) return j({ ok: false, error: "Missing OPENAI_API_KEY" }, 500);
+    if (!OPENAI_API_KEY) {
+      return new Response(JSON.stringify({ ok: false, error: "Missing OPENAI_API_KEY" }), {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+    if (!ASSISTANT_ID) {
+      return new Response(JSON.stringify({ ok: false, error: "Missing ASSISTANT_ID" }), {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
 
-    const selectedMode = mode === "demo" ? "demo" : "main";
-    const assistant_id = selectedMode === "demo" ? ASSISTANT_ID_DEMO : ASSISTANT_ID_MAIN;
+    const body = await request.json().catch(() => ({}));
+    const message = String(body.message || body.query || "").trim();
+    const incomingThreadId = String(body.thread_id || "").trim();
 
-    if (!assistant_id) {
-      return j(
-        {
-          ok: false,
-          error: selectedMode === "demo" ? "Missing ASSISTANT_ID_DEMO" : "Missing ASSISTANT_ID",
-        },
-        500
-      );
+    if (!message) {
+      return new Response(JSON.stringify({ ok: false, error: "Missing message" }), {
+        status: 400,
+        headers: corsHeaders,
+      });
     }
 
     const headers = {
@@ -51,88 +53,111 @@ export default async (request) => {
       "OpenAI-Beta": "assistants=v2",
     };
 
-    // 1) Create thread if not provided
-    let tid = thread_id;
-    if (!tid) {
-      const threadRes = await fetch("https://api.openai.com/v1/threads", {
+    // 1) Thread: použij existující, nebo vytvoř nový
+    let thread_id = incomingThreadId;
+    if (!thread_id) {
+      const tRes = await fetch("https://api.openai.com/v1/threads", {
         method: "POST",
         headers,
         body: JSON.stringify({}),
       });
-
-      if (!threadRes.ok) return j({ ok: false, error: "Thread create failed", details: await threadRes.text() }, 500);
-
-      const threadJson = await threadRes.json();
-      tid = threadJson.id;
+      const tJson = await tRes.json();
+      if (!tRes.ok) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Failed to create thread", details: tJson }),
+          { status: 502, headers: corsHeaders }
+        );
+      }
+      thread_id = tJson.id;
     }
 
-    // 2) Add user message (prepend site context for DEMO if available)
-    let finalMessage = message;
-
-    if (selectedMode === "demo" && site_context && typeof site_context === "string") {
-      finalMessage = `KONTEXT Z WEBU:\n${site_context}\n\nDOTAZ UŽIVATELE:\n${message}`;
+    // 2) Přidej user message do threadu
+    const mRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/messages`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ role: "user", content: message }),
+    });
+    const mJson = await mRes.json();
+    if (!mRes.ok) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Failed to add message", details: mJson, thread_id }),
+        { status: 502, headers: corsHeaders }
+      );
     }
 
-    const addMsgRes = await fetch(`https://api.openai.com/v1/threads/${tid}/messages`, {
+    // 3) Spusť run
+    const rRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/runs`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ role: "user", content: finalMessage }),
+      body: JSON.stringify({ assistant_id: ASSISTANT_ID }),
     });
+    const rJson = await rRes.json();
+    if (!rRes.ok) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Failed to create run", details: rJson, thread_id }),
+        { status: 502, headers: corsHeaders }
+      );
+    }
 
-    if (!addMsgRes.ok) return j({ ok: false, error: "Add message failed", details: await addMsgRes.text() }, 500);
+    // 4) Polling do dokončení
+    const run_id = rJson.id;
+    const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
-    // 3) Run assistant
-    const runRes = await fetch(`https://api.openai.com/v1/threads/${tid}/runs`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ assistant_id }),
-    });
+    let status = rJson.status;
+    let last = rJson;
 
-    if (!runRes.ok) return j({ ok: false, error: "Run create failed", details: await runRes.text() }, 500);
-
-    const runJson = await runRes.json();
-    const runId = runJson.id;
-
-    // 4) Poll until completed
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    let status = runJson.status;
-
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 30; i++) {
       if (status === "completed") break;
       if (status === "failed" || status === "cancelled" || status === "expired") break;
 
-      await sleep(500);
+      await sleep(700);
 
-      const pollRes = await fetch(`https://api.openai.com/v1/threads/${tid}/runs/${runId}`, {
+      const rr = await fetch(`https://api.openai.com/v1/threads/${thread_id}/runs/${run_id}`, {
         method: "GET",
         headers,
       });
-
-      if (!pollRes.ok) return j({ ok: false, error: "Run poll failed", details: await pollRes.text() }, 500);
-
-      const pollJson = await pollRes.json();
-      status = pollJson.status;
+      last = await rr.json();
+      if (!rr.ok) break;
+      status = last.status;
     }
 
     if (status !== "completed") {
-      return j({ ok: false, error: "Run not completed", details: status, thread_id: tid }, 500);
+      return new Response(
+        JSON.stringify({ ok: false, error: "Run did not complete", status, details: last, thread_id }),
+        { status: 502, headers: corsHeaders }
+      );
     }
 
-    // 5) Get last assistant message
-    const msgsRes = await fetch(`https://api.openai.com/v1/threads/${tid}/messages?limit=10`, {
+    // 5) Načti poslední odpověď asistenta
+    const listRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/messages?limit=20`, {
       method: "GET",
       headers,
     });
+    const listJson = await listRes.json();
+    if (!listRes.ok) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Failed to read messages", details: listJson, thread_id }),
+        { status: 502, headers: corsHeaders }
+      );
+    }
 
-    if (!msgsRes.ok) return j({ ok: false, error: "Read messages failed", details: await msgsRes.text() }, 500);
+    const items = Array.isArray(listJson.data) ? listJson.data : [];
+    const lastAssistant = items.find((x) => x.role === "assistant");
 
-    const msgsJson = await msgsRes.json();
-    const items = msgsJson.data || [];
-    const lastAssistant = items.find((m) => m.role === "assistant");
-    const answer = lastAssistant?.content?.[0]?.text?.value || "Omlouvám se, nepodařilo se získat odpověď.";
+    let answer = "";
+    if (lastAssistant?.content?.length) {
+      // typicky text
+      answer = lastAssistant.content?.[0]?.text?.value || "";
+    }
 
-    return j({ ok: true, answer, thread_id: tid }, 200);
+    return new Response(JSON.stringify({ ok: true, answer, thread_id }), {
+      status: 200,
+      headers: corsHeaders,
+    });
   } catch (err) {
-    return j({ ok: false, error: "Unhandled error", details: String(err?.message || err) }, 500);
+    return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
   }
 };

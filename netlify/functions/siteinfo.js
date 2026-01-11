@@ -1,12 +1,11 @@
 // netlify/functions/siteinfo.js
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function json(statusCode, obj) {
+function resp(statusCode, obj) {
   return {
     statusCode,
     headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
@@ -21,14 +20,76 @@ function normalizeUrl(input) {
   let u = raw;
   if (!/^https?:\/\//i.test(u)) u = "https://" + u;
 
-  const parsed = new URL(u);
+  let parsed;
+  try {
+    parsed = new URL(u);
+  } catch {
+    throw new Error("URL is not valid");
+  }
+
   parsed.hash = "";
   return parsed.toString();
 }
 
-function guessCompanyName(url, title) {
+function decodeEntities(s) {
+  return (s || "")
+    .replaceAll("&nbsp;", " ")
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'");
+}
+
+function stripTags(s) {
+  return (s || "").replace(/<[^>]*>/g, " ");
+}
+
+function pickTitle(html) {
+  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return m ? decodeEntities(m[1]).trim().slice(0, 140) : "";
+}
+
+function pickMetaDescription(html) {
+  const m =
+    html.match(/<meta[^>]+name=["']description["'][^>]*>/i) ||
+    html.match(/<meta[^>]+property=["']og:description["'][^>]*>/i);
+
+  if (!m) return "";
+  const tag = m[0];
+  const c = tag.match(/content=["']([^"']+)["']/i);
+  return c ? decodeEntities(c[1]).trim().slice(0, 320) : "";
+}
+
+function pickH1(html) {
+  const m = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  return m ? decodeEntities(stripTags(m[1])).trim().slice(0, 180) : "";
+}
+
+function cleanText(html) {
+  let t = (html || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, " ")
+    .replace(/<nav[\s\S]*?<\/nav>/gi, " ")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, " ")
+    .replace(/<header[\s\S]*?<\/header>/gi, " ")
+    .replace(/<[^>]*>/g, " ");
+
+  t = decodeEntities(t);
+  t = t.replace(/\s+/g, " ").trim();
+
+  // oříznutí aby to nebylo megadlouhé
+  return t.slice(0, 7000);
+}
+
+function guessCompanyName(url, title, h1) {
   try {
-    if (title) return title.split("|")[0].split("-")[0].trim().slice(0, 60);
+    const cand = (h1 || "").trim() || (title || "").trim();
+    if (cand) return cand.split("|")[0].split("-")[0].trim().slice(0, 60);
+
     const host = new URL(url).hostname.replace(/^www\./, "");
     const base = host.split(".")[0];
     return base.charAt(0).toUpperCase() + base.slice(1);
@@ -37,47 +98,28 @@ function guessCompanyName(url, title) {
   }
 }
 
-function clip(s, n) {
-  return (s || "").toString().slice(0, n);
-}
-
-function cleanupText(s) {
-  return (s || "")
-    .replace(/\r/g, "")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 async function fetchWithTimeout(url, ms) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), ms);
+
   try {
-    const res = await fetch(url, { signal: controller.signal });
-    const text = await res.text();
-    return { res, text };
+    const res = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; DemoSiteInfo/1.0)",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+    });
+
+    const contentType = (res.headers.get("content-type") || "").toLowerCase();
+    const html = await res.text();
+
+    return { res, html, contentType };
   } finally {
     clearTimeout(t);
   }
-}
-
-// r.jina.ai umí:
-// https://r.jina.ai/http://example.com
-// https://r.jina.ai/https://example.com
-function toJina(url) {
-  const u = new URL(url);
-  return `https://r.jina.ai/${u.protocol}//${u.host}${u.pathname}${u.search}`;
-}
-
-function extractTitle(markdownText) {
-  // jina často vrací něco jako "# Title" na začátku
-  const lines = (markdownText || "").split("\n").map((x) => x.trim());
-  const h1 = lines.find((l) => l.startsWith("# "));
-  if (h1) return h1.replace(/^#\s+/, "").trim().slice(0, 140);
-
-  // fallback: první neprázdný řádek
-  const first = lines.find((l) => l.length > 3);
-  return (first || "").slice(0, 140);
 }
 
 exports.handler = async (event) => {
@@ -85,55 +127,75 @@ exports.handler = async (event) => {
     return { statusCode: 204, headers: corsHeaders, body: "" };
   }
 
+  if (event.httpMethod !== "POST") {
+    return resp(405, { ok: false, error: "Method not allowed" });
+  }
+
   try {
-    // umožníme i GET pro rychlý test:
-    // /.netlify/functions/siteinfo?url=https://...
-    let inputUrl = "";
-    if (event.httpMethod === "GET") {
-      const qs = event.queryStringParameters || {};
-      inputUrl = qs.url || "";
-    } else if (event.httpMethod === "POST") {
-      const body = JSON.parse(event.body || "{}");
-      inputUrl = body.url || "";
-    } else {
-      return json(405, { ok: false, error: "Method not allowed" });
+    const body = JSON.parse(event.body || "{}");
+    const normalized = normalizeUrl(body.url);
+
+    // 1) primárně zkus https (už je normalizované)
+    let out;
+    try {
+      out = await fetchWithTimeout(normalized, 12000);
+    } catch (e) {
+      // 2) fallback: zkus http (některé weby mají divné redirecty)
+      const tryHttp = normalized.replace(/^https:\/\//i, "http://");
+      out = await fetchWithTimeout(tryHttp, 12000);
     }
 
-    const normalized = normalizeUrl(inputUrl);
-    const jinaUrl = toJina(normalized);
-
-    // Timeout trošku větší – jina bývá rychlá
-    const { res, text } = await fetchWithTimeout(jinaUrl, 20000);
+    const { res, html, contentType } = out;
 
     if (!res.ok) {
-      return json(502, {
+      return resp(502, {
         ok: false,
-        error: "Failed to load via jina",
+        error: "Site returned non-OK status",
         details: { status: res.status, statusText: res.statusText },
       });
     }
 
-    const cleaned = cleanupText(text);
+    if (!contentType.includes("text/html")) {
+      return resp(422, {
+        ok: false,
+        error: "URL did not return HTML",
+        details: { contentType: contentType || "unknown" },
+      });
+    }
 
-    // Z toho uděláme krátký „site_context“ pro demo asistenta (tokenově)
-    const title = extractTitle(cleaned);
-    const companyName = guessCompanyName(normalized, title);
+    const clipped = (html || "").slice(0, 300000);
 
-    // Konkrétní „shrnutí“ (hlava + výcuc textu)
-    const summary =
-      `URL: ${normalized}\n` +
-      (title ? `Název: ${title}\n` : "") +
-      `Obsah webu (výcuc):\n` +
-      clip(cleaned, 6000);
+    const title = pickTitle(clipped);
+    const desc = pickMetaDescription(clipped);
+    const h1 = pickH1(clipped);
+    const text = cleanText(clipped);
 
-    return json(200, {
+    const summary = [
+      title ? `Title: ${title}` : "",
+      desc ? `Popis: ${desc}` : "",
+      h1 ? `H1: ${h1}` : "",
+      text ? `Text: ${text.slice(0, 2800)}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const finalUrl = res.url || normalized;
+    const companyName = guessCompanyName(finalUrl, title, h1);
+
+    return resp(200, {
       ok: true,
-      url: normalized,
+      url: finalUrl,
       companyName,
       title: title || "",
-      summary, // <- tohle posílej do search.mjs jako site_context
+      description: desc || "",
+      h1: h1 || "",
+      summary,
     });
   } catch (e) {
-    return json(500, { ok: false, error: "Failed to fetch site", details: String(e?.message || e) });
+    return resp(500, {
+      ok: false,
+      error: "Failed to fetch site",
+      details: String(e?.message || e),
+    });
   }
 };

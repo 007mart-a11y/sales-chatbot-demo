@@ -14,6 +14,7 @@
       --accent2:#9b5cff;
       --ok:#3ee07a;
       --warn:#ffcc66;
+      --danger:#ff5c5c;
     }
     html,body{height:100%}
     body{
@@ -56,6 +57,7 @@
       border:1px solid var(--stroke);
       padding:6px 10px;border-radius:999px;
       background: rgba(255,255,255,.04);
+      white-space:nowrap;
     }
 
     .chat{
@@ -64,6 +66,21 @@
       max-height:64vh; overflow:auto;
       scroll-behavior:smooth;
     }
+
+    /* sticky banner (personalized) */
+    .contextBanner{
+      position:sticky;
+      top:0;
+      z-index:5;
+      border:1px solid rgba(255,79,216,.28);
+      background: linear-gradient(90deg, rgba(255,79,216,.14), rgba(155,92,255,.10));
+      border-radius:14px;
+      padding:10px 12px;
+      backdrop-filter: blur(6px);
+    }
+    .contextBanner b{font-size:12.5px; display:block}
+    .contextBanner span{font-size:12px; color:rgba(255,255,255,.72); display:block; margin-top:2px}
+
     .msg{
       max-width:92%;
       padding:10px 12px;
@@ -121,6 +138,10 @@
       padding:7px 10px;border-radius:999px;font-size:12px;cursor:pointer;user-select:none;
     }
     .chip:hover{filter:brightness(1.08)}
+    .chip.alt{
+      border-color: rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+    }
 
     .row{display:flex;gap:10px;padding:12px;border-top:1px solid var(--stroke);background: rgba(0,0,0,.12)}
     input{
@@ -136,18 +157,77 @@
     button:disabled{opacity:.6; cursor:not-allowed}
     .foot{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px 12px;color:rgba(255,255,255,.55);font-size:11px}
     .pill{border:1px solid var(--stroke);padding:6px 10px;border-radius:999px;background: rgba(255,255,255,.04)}
+
+    /* popup banner */
+    .toastWrap{
+      position:fixed;
+      left:0; right:0; top:14px;
+      display:flex;
+      justify-content:center;
+      pointer-events:none;
+      z-index:999;
+    }
+    .toast{
+      pointer-events:auto;
+      width:min(520px, calc(100% - 36px));
+      border:1px solid rgba(255,79,216,.35);
+      background: linear-gradient(90deg, rgba(255,79,216,.16), rgba(155,92,255,.12));
+      border-radius:16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      padding:12px 12px;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      animation: pop .18s ease-out;
+    }
+    @keyframes pop{
+      from{ transform: translateY(-8px); opacity:0 }
+      to{ transform: translateY(0); opacity:1 }
+    }
+    .toast .tIco{
+      width:34px;height:34px;border-radius:14px;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      display:flex;align-items:center;justify-content:center;
+      font-weight:900;
+      flex:0 0 auto;
+    }
+    .toast b{display:block;font-size:13px}
+    .toast span{display:block;color:rgba(255,255,255,.75);font-size:12px;margin-top:2px;line-height:1.25}
+    .toast .x{
+      margin-left:auto;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color:rgba(255,255,255,.85);
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:12px;
+      cursor:pointer;
+    }
   </style>
 </head>
 <body>
+
+<div class="toastWrap" id="toastWrap" style="display:none">
+  <div class="toast" role="status" aria-live="polite">
+    <div class="tIco">✨</div>
+    <div>
+      <b id="toastTitle">Nový chatbot pro firmu</b>
+      <span id="toastText">Nyní se můžete ptát demo asistenta pro představu, jak by odpovídal u vás.</span>
+    </div>
+    <button class="x" id="toastClose" type="button">OK</button>
+  </div>
+</div>
+
 <div class="wrap">
   <div class="widget">
     <div class="top">
       <div class="logo">AI</div>
       <div class="title">
-        <b>AI Chatbot</b>
-        <span>Ukázka zdarma • rychlé vyzkoušení</span>
+        <b id="topTitle">AI Chatbot</b>
+        <span id="topSub">Ukázka zdarma • rychlé vyzkoušení</span>
       </div>
-      <div class="badge" id="modeBadge">menu</div>
+      <div class="badge" id="modeBadge">MENU</div>
     </div>
 
     <div id="chat" class="chat"></div>
@@ -174,15 +254,17 @@ const setThreadId = id => id && localStorage.setItem(THREAD_KEY_DEMO, id);
 const resetThread = () => localStorage.removeItem(THREAD_KEY_DEMO);
 
 /* STATE */
-const STATE_KEY = "sales_demo_state_v3";
+const STATE_KEY = "sales_demo_state_v4";
 const CONTEXT_KEY = "sales_demo_homepage_context_v1";
 
 const defaultState = () => ({
-  mode: "menu",       // menu | url | chat
+  mode: "menu",       // menu | url | seed | chat
   url: "",
   urlSaved: false,
   demoShown: false,
   contextReady: false,
+  companyName: "",
+  seedQuestions: []   // fallback questions when scrape blocked
 });
 let state = loadState();
 
@@ -207,17 +289,50 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 const statusEl = document.getElementById("status");
 const modeBadge = document.getElementById("modeBadge");
+const topTitle = document.getElementById("topTitle");
+const topSub = document.getElementById("topSub");
+
+const toastWrap = document.getElementById("toastWrap");
+const toastTitle = document.getElementById("toastTitle");
+const toastText = document.getElementById("toastText");
+const toastClose = document.getElementById("toastClose");
+
+toastClose.onclick = () => (toastWrap.style.display = "none");
 
 function setStatus(t){ statusEl.textContent = t; }
+
 function setMode(m){
   state.mode = m; saveState();
-  modeBadge.textContent = m;
-  input.placeholder = (m==="url") ? "www.vas-web.cz" : "Napište zprávu…";
+  modeBadge.textContent = (m==="menu") ? "MENU" : (m==="url") ? "URL" : (m==="seed") ? "DEMO" : "CHAT";
+
+  if(m==="url"){
+    input.placeholder = "Zadejte web (např. muj-web.cz)";
+  }else if(m==="seed"){
+    input.placeholder = "Jméno firmy + 3 dotazy (viz příklad)…";
+  }else{
+    input.placeholder = "Napište zprávu…";
+  }
+
+  refreshTopBar();
+  ensureContextBanner();
 }
+
+function refreshTopBar(){
+  const name = (state.companyName || "").trim();
+  if(name){
+    topTitle.textContent = `AI Asistent – ${name}`;
+    topSub.textContent = "DEMO ukázka • odpovědi podle vašeho webu / zadání";
+  }else{
+    topTitle.textContent = "AI Chatbot";
+    topSub.textContent = "Ukázka zdarma • rychlé vyzkoušení";
+  }
+}
+
 function scrollBottom(){
   requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; });
   setTimeout(()=>{ chat.scrollTop = chat.scrollHeight; }, 60);
 }
+
 function add(role, htmlOrText, asHtml=false){
   const d = document.createElement("div");
   d.className = "msg " + (role==="user" ? "user" : "bot");
@@ -241,12 +356,58 @@ function addTiny(text){
   scrollBottom();
 }
 
+/* personalized sticky banner inside chat */
+function ensureContextBanner(){
+  const existing = document.getElementById("contextBanner");
+  const name = (state.companyName || "").trim();
+
+  if(!name){
+    if(existing) existing.remove();
+    return;
+  }
+
+  if(existing) {
+    existing.querySelector("b").textContent = `Chatbot ukázka pro firmu ${name}`;
+    existing.querySelector("span").textContent = "Nyní se můžete ptát demo asistenta – pro představu, jak by odpovídal u vás.";
+    return;
+  }
+
+  const b = document.createElement("div");
+  b.className = "contextBanner";
+  b.id = "contextBanner";
+  b.innerHTML = `<b>Chatbot ukázka pro firmu ${escapeHtml(name)}</b>
+                 <span>Nyní se můžete ptát demo asistenta – pro představu, jak by odpovídal u vás.</span>`;
+  chat.prepend(b);
+}
+
+function showPersonalizedToast(){
+  const name = (state.companyName || "").trim() || prettyDomain(state.url || "") || "vaši firmu";
+  toastTitle.textContent = `Nový chatbot pro firmu ${name}`;
+  toastText.textContent = "Nyní se můžete ptát demo asistenta – pro představu, jak by mohl odpovídat i u vás.";
+  toastWrap.style.display = "flex";
+}
+
 /* HELPERS */
+function escapeHtml(str){
+  return String(str||"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#39;");
+}
+
 function normalizeUrl(u){
   let s = String(u||"").trim().replace(/\s+/g,"");
   if(!s) return "";
   if(!/^https?:\/\//i.test(s)) s = "https://" + s;
-  return s;
+  // keep only origin (more stable)
+  try{
+    const url = new URL(s);
+    return url.origin;
+  }catch{
+    return s;
+  }
 }
 function looksValidUrl(u){
   const s = String(u||"").trim();
@@ -254,6 +415,52 @@ function looksValidUrl(u){
 }
 function prettyDomain(url){
   return String(url).replace(/^https?:\/\//i,"").replace(/\/+$/,"");
+}
+function titleizeFromDomain(domain){
+  const d = String(domain||"").replace(/^www\./i,"");
+  const base = d.split(".")[0] || "";
+  if(!base) return "";
+  // jh-dental => JH Dental
+  return base
+    .split(/[-_]+/g)
+    .filter(Boolean)
+    .map(w => (w.length<=2 ? w.toUpperCase() : (w[0].toUpperCase()+w.slice(1))))
+    .join(" ");
+}
+
+/* parse seed block:
+   Firma: JH Dental
+   Dotazy:
+   - Kolik stojí…
+   - Jak dlouho…
+   - Kde…
+*/
+function parseSeedInput(text){
+  const t = String(text||"").trim();
+  let company = "";
+  let qs = [];
+
+  // company
+  const m1 = t.match(/firma\s*:\s*(.+)/i);
+  if(m1 && m1[1]) company = m1[1].split("\n")[0].trim();
+
+  // questions lines
+  const lines = t.split("\n").map(x=>x.trim()).filter(Boolean);
+  for(const ln of lines){
+    if(/^(-|\u2022|\*)\s+/.test(ln)){
+      const q = ln.replace(/^(-|\u2022|\*)\s+/,"").trim();
+      if(q) qs.push(q);
+    }
+  }
+
+  // fallback: if no bullet lines, try split by " ; "
+  if(qs.length<3){
+    const parts = t.split(/[;]+/).map(x=>x.trim()).filter(Boolean);
+    const probableQs = parts.filter(p => p.length>8 && (p.includes("?") || p.toLowerCase().startsWith("kolik") || p.toLowerCase().startsWith("jak") || p.toLowerCase().startsWith("kdy") || p.toLowerCase().startsWith("kde")));
+    if(probableQs.length>=3) qs = probableQs.slice(0,3);
+  }
+
+  return { company, qs: qs.slice(0,3) };
 }
 
 /* BACKEND CALLS */
@@ -268,48 +475,25 @@ async function saveUrlToSheets(url){
   return { ok:r.ok, raw:txt };
 }
 
-/* SCRAPE (homepage only) */
+/* CONTEXT */
 function getContext(){ return localStorage.getItem(CONTEXT_KEY) || ""; }
 function setContext(text){
   localStorage.setItem(CONTEXT_KEY, text || "");
-  state.contextReady = !!(text && text.length > 50);
+  state.contextReady = !!(text && text.length > 80);
   saveState();
 }
+
 async function scrapeHomepage(url){
-  try{
-    const r = await fetch("/.netlify/functions/scrape",{
-      method:"POST",
-      headers:{ "content-type":"application/json" },
-      body:JSON.stringify({ url })
-    });
-
-    const d = await r.json().catch(()=>({}));
-
-    // ❗ nikdy už neházíme error – DEMO musí jet i bez dat
-    if(!r.ok || !d || d.ok !== true){
-      console.log("scrape failed:", d);
-      return "";
-    }
-
-    const text =
-      String(
-        d.text ||
-        d.content ||
-        d.body ||
-        d.html ||
-        d.markdown ||
-        d.result ||
-        ""
-      ).trim();
-
-    // ❗ i prázdný text je OK
-    if(!text) return "";
-
-    return text;
-  }catch(e){
-    console.log("scrape exception:", e);
-    return "";
-  }
+  const r = await fetch("/.netlify/functions/scrape",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify({ url })
+  });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error || "Scrape failed");
+  const text = String(d.text || d.content || d.body || "");
+  if(!text) throw new Error("Scrape returned empty text");
+  return text;
 }
 
 /* DEMO AI */
@@ -332,13 +516,13 @@ async function askDemoAI(text){
 }
 
 /* MINI DEMO (lokální ukázka) */
-function buildDemoFromContext(){
-  const raw = getContext();
+function buildDemoCard(){
   const domain = prettyDomain(state.url || "");
-  const snippet = raw.slice(0, 600).replace(/\s+/g," ").trim();
+  const name = (state.companyName || "").trim() || titleizeFromDomain(domain) || (domain ? domain : "vaši firmu");
 
-  // velmi jednoduchá heuristika – jen aby to vypadalo „na míru“
+  const raw = getContext();
   const lower = raw.toLowerCase();
+
   const hasEshop = lower.includes("košík") || lower.includes("doprava") || lower.includes("platba") || lower.includes("produkt");
   const hasBooking = lower.includes("rezerv") || lower.includes("objednat") || lower.includes("termín") || lower.includes("kalendář");
 
@@ -346,72 +530,75 @@ function buildDemoFromContext(){
   if(hasEshop) typeLabel = "e-shop";
   if(hasBooking) typeLabel = "rezervace / služby";
 
-  return {
-    title: "Mini ukázka (okamžitý náhled)",
-    sub: `Vychází z obsahu homepage (${typeLabel}).`,
-    bullets: [
-      "Odpovídá na časté dotazy (cena, termín, postup, služby)",
-      "Navede uživatele na správnou stránku / kontakt",
-      "Sbírá poptávky 24/7 a šetří čas na telefonu"
-    ],
-    qas: [
-      {q:"Co nabízíte a jak to funguje?", a:"Chatbot shrne služby a vysvětlí postup v několika krocích."},
-      {q:"Kolik to stojí?", a:"Chatbot si řekne o pár detailů a dá orientační rámec / odkaz na ceník."},
-      {q:"Jak rychle to umíte?", a:"Chatbot navrhne další krok a doptá se na termín/lokalitu."},
-    ],
-    flow: ["Co řešíte (stručně)", "Upřesnění (lokalita / rozsah)", "Kontakt pro domluvu"],
-    snippet,
-    domain
-  };
+  const bullets = [
+    "Odpovídá na časté dotazy (cena, termín, postup, služby)",
+    "Navede zákazníka na správnou stránku / kontakt",
+    "Sběr poptávek 24/7 a úspora času na telefonu"
+  ];
+
+  // QAs = buď z seed, nebo default
+  const seed = Array.isArray(state.seedQuestions) ? state.seedQuestions : [];
+  const qas = seed.length===3 ? [
+    {q: seed[0], a:"Chatbot odpoví stručně a srozumitelně, případně se doptá na 1–2 detaily."},
+    {q: seed[1], a:"Chatbot vysvětlí postup a doporučí další krok (např. kontakt / termín)."},
+    {q: seed[2], a:"Chatbot nasměruje zákazníka a nabídne rychlé řešení."},
+  ] : [
+    {q:"Kolik to stojí a co je v ceně?", a:"Chatbot dá orientační rámec a doptá se na pár detailů."},
+    {q:"Jak rychle to umíte?", a:"Chatbot navrhne další krok a doptá se na termín/lokalitu."},
+    {q:"Jaký je postup spolupráce?", a:"Chatbot popíše kroky a nabídne kontakt."},
+  ];
+
+  const flow = ["Co řešíte (stručně)", "Upřesnění (lokalita / rozsah)", "Kontakt pro domluvu"];
+
+  return { name, domain, typeLabel, bullets, qas, flow };
 }
 
 function renderDemoPreview(){
   if(!state.url){
-    add("bot","Nejdřív prosím zadejte URL webu (Získat ukázku zdarma).");
+    add("bot","Nejdřív prosím zadejte web (Získat ukázku zdarma).");
     return;
   }
-  const c = buildDemoFromContext();
-  const bulletsHtml = c.bullets.map(t => `<li><span class="check">✓</span><span>${t}</span></li>`).join("");
 
+  const c = buildDemoCard();
+  const bulletsHtml = c.bullets.map(t => `<li><span class="check">✓</span><span>${escapeHtml(t)}</span></li>`).join("");
   const qaHtml = c.qas.map(x => `
     <li style="margin-bottom:10px">
-      <b style="display:block;color:rgba(255,255,255,.90);font-size:12px;margin-bottom:2px">❓ ${x.q}</b>
-      <span style="color:rgba(255,255,255,.68);font-size:12.5px">💬 ${x.a}</span>
+      <b style="display:block;color:rgba(255,255,255,.90);font-size:12px;margin-bottom:2px">❓ ${escapeHtml(x.q)}</b>
+      <span style="color:rgba(255,255,255,.68);font-size:12.5px">💬 ${escapeHtml(x.a)}</span>
     </li>`).join("");
+  const flowHtml = c.flow.map(s => `<li>${escapeHtml(s)}</li>`).join("");
 
-  const flowHtml = c.flow.map(s => `<li>${s}</li>`).join("");
+  const subLine = getContext()
+    ? `Mini ukázka (okamžitý náhled) • vychází z homepage (${c.typeLabel})`
+    : `Mini ukázka (okamžitý náhled) • web nepovolil automatické načtení, ukázka je orientační`;
 
   const html = `
     <div class="demoCard">
-      <div class="demoTitle">Ukázka pro web: ${c.domain}</div>
-      <div class="demoSub">${c.title} • ${c.sub}</div>
+      <div class="demoTitle">Ukázka pro firmu: ${escapeHtml(c.name)}</div>
+      <div class="demoSub">${escapeHtml(subLine)}</div>
 
+      <!-- SLIDE 1 -->
       <div class="demoBox">
         <b>Co by chatbot u vás dělal</b>
         <ul class="list">${bulletsHtml}</ul>
+        <div style="margin-top:8px;color:rgba(255,255,255,.60);font-size:12px">
+          Ukázka webu: <b style="color:rgba(255,255,255,.82)">${escapeHtml(c.domain || "—")}</b>
+        </div>
       </div>
 
+      <!-- SLIDE 2 -->
       <div class="demoBox">
-        <b>3 příklady dotazů a odpovědí</b>
+        <b>Jak vypadá odpovídání (3 příklady) + mini flow</b>
         <ul style="margin:0;padding-left:16px">${qaHtml}</ul>
-      </div>
-
-      <div class="demoBox">
-        <b>Ukázka sběru poptávky (flow)</b>
-        <ul style="margin:0;padding-left:16px;color:rgba(255,255,255,.68);font-size:12.5px">${flowHtml}</ul>
-      </div>
-
-      <div class="demoBox">
-        <b>Výřez z homepage (pro demo AI)</b>
-        <div style="color:rgba(255,255,255,.68);font-size:12.5px;line-height:1.35">
-          ${c.snippet ? c.snippet : "<i>(zatím nemám text z homepage)</i>"}
+        <div style="margin-top:10px;color:rgba(255,255,255,.68);font-size:12.5px">
+          <b style="display:block;font-size:12px;margin-bottom:6px">Sběr poptávky (rychle)</b>
+          <ul style="margin:0;padding-left:16px">${flowHtml}</ul>
         </div>
       </div>
 
       <div class="miniActions">
-        <span class="chip" data-demo="ask">Zeptejte se AI na váš web</span>
-        <span class="chip" data-demo="support">Podpora (reklamace, návody…)</span>
-        <span class="chip" data-demo="sales">Sběr poptávek</span>
+        <span class="chip" data-demo="ask">Zeptejte se demo asistenta</span>
+        <span class="chip alt" data-demo="seed">Upravit jméno + 3 dotazy</span>
       </div>
     </div>
   `;
@@ -426,23 +613,31 @@ function renderDemoPreview(){
   state.demoShown = true;
   saveState();
 
-  add("bot","Teď se mě klidně zeptejte na cokoli ohledně vašeho webu – odpovím podle homepage (DEMO).");
+  ensureContextBanner();
+  showPersonalizedToast();
+  add("bot","Teď se klidně ptejte — tohle je demo chatbota pro vaši firmu. 🙂");
 }
 
 function handleDemoChip(which){
-  if(which==="support"){
-    add("bot","Jasně — napište, jaké dotazy řešíte nejčastěji v podpoře (reklamace, návody, objednávky…) a ukážu návrh.");
-    setMode("chat");
-    return;
-  }
-  if(which==="sales"){
-    add("bot","Pro sběr poptávek: napište, co chcete nejvíc prodávat / nabízet, a navrhnu krátký poptávkový flow.");
-    setMode("chat");
+  if(which==="seed"){
+    setMode("seed");
+    add("bot",
+`Super — napište prosím:
+• jméno firmy
+• 3 nejčastější dotazy zákazníků
+
+Příklad:
+Firma: JH Dental
+- Kolik stojí dentální hygiena?
+- Jak rychle se dostanu na termín?
+- Kde vás najdu / jaký máte kontakt?`);
+    input.focus();
     return;
   }
   if(which==="ask"){
     setMode("chat");
-    add("bot","Jasně — zeptejte se (budu odpovídat podle homepage). 🙂");
+    add("bot","Jasně — napište dotaz. 🙂");
+    input.focus();
     return;
   }
 }
@@ -450,10 +645,10 @@ function handleDemoChip(which){
 /* MENU */
 function renderMenu(){
   const hasUrl = !!(state.urlSaved && state.url);
-  const hasCtx = !!(getContext() && getContext().length > 50);
+  const hasCtx = !!(getContext() && getContext().length > 80);
 
   const html = `
-    <div><b>Naše chatboty využívají firmy napříč obory.</b><br>
+    <div><b>Ukázku připravím pro váš web.</b><br>
       <span style="color:rgba(255,255,255,.68)">Vyberte, co chcete udělat:</span>
     </div>
 
@@ -461,14 +656,14 @@ function renderMenu(){
       <div class="tile" data-action="demo">
         <div class="k">
           <div class="ico">▶</div>
-          <div><b>Získat ukázku zdarma</b><span>Proklik až k zadání URL</span></div>
+          <div><b>Získat ukázku zdarma</b><span>Zadáte web a hned uvidíte ukázku</span></div>
         </div>
       </div>
 
       <div class="tile" data-action="what">
         <div class="k">
           <div class="ico">⚙</div>
-          <div><b>Co umí chatbot?</b><span>Rychlý přehled funkcí</span></div>
+          <div><b>Co umí chatbot?</b><span>Rychlý přehled</span></div>
         </div>
       </div>
 
@@ -484,8 +679,8 @@ function renderMenu(){
           <div class="k">
             <div class="ico">${hasCtx ? "✓" : "!"}</div>
             <div>
-              <b>Zobrazit ukázku pro uložené URL</b>
-              <span>${prettyDomain(state.url)} ${hasCtx ? "• kontext OK" : "• chybí scrape"}</span>
+              <b>Zobrazit ukázku pro uložený web</b>
+              <span>${escapeHtml(prettyDomain(state.url))} ${hasCtx ? "• připraveno" : "• web může blokovat načtení"}</span>
             </div>
           </div>
         </div>
@@ -502,15 +697,15 @@ function renderMenu(){
 
 function renderCapabilities(){
   const html = `
-    <div><b>Chatbot je multifunkční nástroj pro podporu prodeje i zákaznické podpory.</b><br>
-      <span style="color:rgba(255,255,255,.68)">Podívejte se, co všechno zvládne:</span>
+    <div><b>Chatbot pomáhá s prodejem i zákaznickou podporou.</b><br>
+      <span style="color:rgba(255,255,255,.68)">Co zvládne:</span>
     </div>
     <ul class="list">
-      <li><span class="check">✓</span><span>Odpovídá na dotazy (FAQ, produkty, služby)</span></li>
-      <li><span class="check">✓</span><span>Sbírá poptávky a kvalifikuje zájemce</span></li>
-      <li><span class="check">✓</span><span>Pomůže se zákaznickou podporou (návody, reklamace, navigace)</span></li>
-      <li><span class="check">✓</span><span>Doporučí službu / produkt podle potřeb</span></li>
-      <li><span class="check">✓</span><span>Umí se učit z podkladů firmy (knowledge base)</span></li>
+      <li><span class="check">✓</span><span>FAQ: cena, služby, termíny, postup</span></li>
+      <li><span class="check">✓</span><span>Sběr poptávek a kvalifikace zájemců</span></li>
+      <li><span class="check">✓</span><span>Podpora: navigace, návody, reklamace</span></li>
+      <li><span class="check">✓</span><span>Směrování na správný kontakt / stránku</span></li>
+      <li><span class="check">✓</span><span>Možnost učení z podkladů firmy (knowledge base)</span></li>
     </ul>
   `;
   add("bot", html, true);
@@ -519,27 +714,37 @@ function renderCapabilities(){
 function handleMenuAction(action){
   if(action==="demo"){
     setMode("url");
-    add("bot","Ukázku připravíme přímo pro váš web. Jaké jsou vaše stránky?");
-    addHint("Tip: stačí doména (např. muj-web.cz).");
+    add("bot","Zadejte prosím web (stačí doména). Ukázku připravím hned.");
+    addHint("Pozn.: Některé velké weby automatické načítání blokují — v tom případě ukážeme demo podle 3 vašich dotazů.");
     input.focus();
     return;
   }
   if(action==="what"){ renderCapabilities(); return; }
   if(action==="ask"){ setMode("chat"); add("bot","Jasně — zeptejte se. 🙂"); input.focus(); return; }
+
   if(action==="show_demo"){
     setMode("chat");
-    // když chybí kontext, zkusíme ho udělat znovu automaticky
+    // if missing context, try again but fail gracefully
     if(!getContext()){
-      add("bot","Nemám ještě text z homepage. Zkusím ho stáhnout…");
+      add("bot","Připravuji ukázku…");
       (async ()=>{
         try{
-          setStatus("stahuji homepage…");
+          setStatus("načítám…");
           const txt = await scrapeHomepage(state.url);
           setContext(txt);
-          add("bot","Hotovo — homepage mám načtenou. ✅");
+          // company auto from domain if empty
+          if(!state.companyName) state.companyName = titleizeFromDomain(prettyDomain(state.url));
+          saveState();
+          ensureContextBanner();
           renderDemoPreview();
         }catch(e){
-          add("bot","Nepodařilo se stáhnout homepage. Zkuste prosím znovu nebo pošlete URL ještě jednou.");
+          // graceful fallback: go seed mode
+          setContext("");
+          saveState();
+          add("bot","Tenhle web bohužel nedovolil automatické načtení (některé weby to blokují).");
+          add("bot","Nevadí — napište jméno firmy a 3 typické dotazy zákazníků a ukážu demo odpovědí.");
+          setMode("seed");
+          input.focus();
           if(DEBUG) add("bot","DEBUG scrape error: "+String(e));
         }finally{
           setStatus("připraveno");
@@ -578,78 +783,98 @@ async function send(){
   try{
     setStatus("pracuji…");
 
-   // lokální ukázka + scrape homepage
-if(isAskingForDemo(t) && state.urlSaved && state.url){
-  setMode("chat");
-  add("bot", "Načítám obsah vašeho webu pro ukázku…");
-
-  try {
-    const scraped = await scrapeHomepage(state.url);
-
-    if (scraped && scraped.length > 50) {
-      state.homepageContext = scraped;
-      state.contextStatus = "ok";
-      saveState();
-    } else {
-      state.contextStatus = "fail";
-      saveState();
-      add("bot", "⚠️ Homepage se načetla, ale bez dostatečného obsahu. Ukázka bude obecná.");
-    }
-
-  } catch (e) {
-    state.contextStatus = "fail";
-    saveState();
-    add("bot", "⚠️ Nepodařilo se načíst homepage. Ukázka bude obecná.");
-  }
-
-  renderDemoPreview();
-  setStatus("připraveno");
-  return;
-}
-    // URL mode → uložit do Sheets + scrape + ukázka
-    if(state.mode==="url"){
-      if(!looksValidUrl(t)){
-        add("bot","Tohle nevypadá jako URL. Zkuste prosím třeba „muj-web.cz“ nebo „www.muj-web.cz“.");
-        setStatus("čekám na URL");
-        return;
-      }
-
-      const url = normalizeUrl(t);
-      state.url = url;
-      saveState();
-
-      // 1) uložit do Sheets
-      const r = await saveUrlToSheets(url);
-      if(!r.ok){
-        if(DEBUG) add("bot","Chyba ukládání do Sheets:\n"+r.raw);
-        add("bot","Omlouvám se, nepodařilo se to uložit. Zkuste to prosím znovu.");
-        setStatus("chyba ukládání");
-        return;
-      }
-      state.urlSaved = true;
-      saveState();
-      add("bot","Děkuji — URL mám uložené. ✅");
-
-      // 2) scrape homepage
-      add("bot","Ještě si rychle načtu homepage, ať ukázka odpovídá vašemu webu…");
-      setStatus("stahuji homepage…");
-      const txt = await scrapeHomepage(url);
-      setContext(txt);
-      add("bot","Hotovo — homepage mám načtenou. ✅");
-
-      // 3) ukázka + přepnutí do chatu
+    // local "show demo" intent
+    if(isAskingForDemo(t) && state.urlSaved && state.url){
       setMode("chat");
       renderDemoPreview();
       setStatus("připraveno");
       return;
     }
 
-    // chat/menu → DEMO AI odpověď (podle homepage)
+    // SEED mode: user provides company + 3 questions (fallback)
+    if(state.mode==="seed"){
+      const parsed = parseSeedInput(t);
+
+      if(parsed.company) state.companyName = parsed.company;
+      if(!state.companyName && state.url) state.companyName = titleizeFromDomain(prettyDomain(state.url));
+
+      if(parsed.qs.length === 3){
+        state.seedQuestions = parsed.qs;
+        saveState();
+        ensureContextBanner();
+        setMode("chat");
+        add("bot","Perfektní — mám jméno firmy i 3 dotazy. Připravuji ukázku… ✅");
+        renderDemoPreview();
+        setStatus("připraveno");
+        return;
+      }else{
+        add("bot",
+`Ještě mi prosím pošlete přesně 3 dotazy (nejlépe jako odrážky).
+Příklad:
+Firma: JH Dental
+- Kolik stojí dentální hygiena?
+- Jak rychle se dostanu na termín?
+- Kde vás najdu / jaký máte kontakt?`);
+        setStatus("čekám na 3 dotazy");
+        return;
+      }
+    }
+
+    // URL mode → save + try scrape + show demo (no technical text)
+    if(state.mode==="url"){
+      if(!looksValidUrl(t)){
+        add("bot","Tohle nevypadá jako web. Zkuste prosím třeba „muj-web.cz“.");
+        setStatus("čekám na web");
+        return;
+      }
+
+      const url = normalizeUrl(t);
+      state.url = url;
+      // auto company name from domain (user can rename later)
+      if(!state.companyName) state.companyName = titleizeFromDomain(prettyDomain(url));
+      saveState();
+
+      // 1) save to Sheets
+      const r = await saveUrlToSheets(url);
+      if(!r.ok){
+        if(DEBUG) add("bot","Chyba ukládání do Sheets:\n"+r.raw);
+        add("bot","Omlouvám se, nepodařilo se to uložit. Zkuste to prosím znovu.");
+        setStatus("chyba");
+        return;
+      }
+      state.urlSaved = true;
+      saveState();
+
+      add("bot","Děkuji — mám to. ✅ Připravuji ukázku…");
+
+      // 2) scrape homepage (but fail gracefully)
+      try{
+        setStatus("načítám…");
+        const txt = await scrapeHomepage(url);
+        setContext(txt);
+        add("bot","Hotovo — ukázka je připravená. ✅");
+        setMode("chat");
+        renderDemoPreview();
+        setStatus("připraveno");
+        return;
+      }catch(e){
+        setContext("");
+        saveState();
+        setMode("seed");
+        add("bot","Tenhle web bohužel nedovolil automatické načtení (některé weby to blokují).");
+        add("bot","Nevadí — napište jméno firmy a 3 typické dotazy zákazníků a ukážu demo odpovědí.");
+        setStatus("čekám na jméno + 3 dotazy");
+        if(DEBUG) add("bot","DEBUG scrape error: "+String(e));
+        input.focus();
+        return;
+      }
+    }
+
+    // chat/menu → DEMO AI reply
     setMode("chat");
 
-    // pokud nemáme context, upozorni
-    if(!getContext() && state.url){
-      add("bot","⚠️ Nemám načtenou homepage, odpovím obecně. (Zkuste „Zobrazit ukázku“ pro znovunačtení.)");
+    if(!getContext() && !state.seedQuestions?.length){
+      add("bot","Tip: Pro přesnější ukázku zadejte web (Získat ukázku zdarma) nebo doplňte 3 typické dotazy.");
     }
 
     const ans = await askDemoAI(t);
@@ -673,12 +898,19 @@ input.addEventListener("keydown", e => (e.key==="Enter") && send());
 /* INIT */
 function init(){
   setStatus("připraveno");
+  refreshTopBar();
+
+  // default mode
   setMode("menu");
 
   if(state.urlSaved && state.url){
-    add("bot", `Vítejte zpět 👋 Máte uložené URL: ${prettyDomain(state.url)}`);
-    if(getContext()) addTiny("Kontekst homepage je načtený ✅");
-    else addTiny("Kontekst homepage není načtený (lze dohrát přes „Zobrazit ukázku…“) ");
+    const dom = prettyDomain(state.url);
+    if(!state.companyName) state.companyName = titleizeFromDomain(dom);
+    saveState();
+    ensureContextBanner();
+
+    add("bot", `Vítejte zpět 👋`);
+    addTiny(`Uložený web: ${dom}`);
   } else {
     add("bot","Dobrý den 👋");
   }

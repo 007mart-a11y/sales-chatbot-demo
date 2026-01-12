@@ -880,12 +880,12 @@ async function send(){
 cbSend.addEventListener("click", send);
 cbInput.addEventListener("keydown", (e)=>{ if(e.key === "Enter") send(); });
 
-/** Init */
-(function init(){
+/* Init */
+function init(){
   renderWelcome();
 
-  // if launcher shown, allow nudge hide after first open etc.
-  // if DISPLAY_LAUNCHER=false, Lovable řídí otevření
+  // otevřít chat hned – Lovable jen zobrazí panel
+  openPanel();
 })();
 </script>
 </body>

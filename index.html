@@ -67,16 +67,12 @@
       scroll-behavior:smooth;
     }
 
-    /* sticky banner (personalized) */
+    /* ✅ ONE compact banner in chat (NOT sticky, NOT overlay) */
     .contextBanner{
-      position:sticky;
-      top:0;
-      z-index:5;
       border:1px solid rgba(255,79,216,.28);
       background: linear-gradient(90deg, rgba(255,79,216,.14), rgba(155,92,255,.10));
       border-radius:14px;
       padding:10px 12px;
-      backdrop-filter: blur(6px);
     }
     .contextBanner b{font-size:12.5px; display:block}
     .contextBanner span{font-size:12px; color:rgba(255,255,255,.72); display:block; margin-top:2px}
@@ -95,26 +91,27 @@
     .hint{color:var(--muted); font-size:12px}
     .tiny{color:rgba(255,255,255,.55); font-size:11px}
 
+    /* ✅ smaller, 2 tiles only */
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
     .tile{
-      border:1px solid rgba(255,79,216,.35);
-      background: linear-gradient(180deg, rgba(255,79,216,.10), rgba(155,92,255,.06));
-      border-radius:16px;padding:12px;cursor:pointer;user-select:none;
+      border:1px solid rgba(255,79,216,.28);
+      background: linear-gradient(180deg, rgba(255,79,216,.08), rgba(155,92,255,.05));
+      border-radius:16px;padding:10px;cursor:pointer;user-select:none;
       transition: transform .08s ease, filter .08s ease;
-      min-height:74px;
+      min-height:56px; /* smaller */
     }
     .tile:hover{transform:translateY(-1px); filter:brightness(1.06)}
-    .tile .k{display:flex; align-items:center; gap:10px; margin-bottom:6px}
+    .tile .k{display:flex; align-items:center; gap:10px; margin-bottom:0}
     .ico{
-      width:32px;height:32px;border-radius:12px;
-      background: rgba(255,79,216,.18);
-      border:1px solid rgba(255,79,216,.25);
+      width:30px;height:30px;border-radius:12px;
+      background: rgba(255,79,216,.16);
+      border:1px solid rgba(255,79,216,.22);
       display:flex;align-items:center;justify-content:center;
       font-weight:800;
+      flex:0 0 auto;
     }
     .tile b{font-size:13px}
-    .tile span{display:block; font-size:12px; color:var(--muted); margin-top:2px}
-    .tile.full{grid-column:1 / -1}
+    .tile span{display:block; font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.1}
 
     .list{margin:6px 0 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
     .list li{display:flex;gap:10px;align-items:flex-start;color:var(--muted);font-size:13px}
@@ -157,67 +154,9 @@
     button:disabled{opacity:.6; cursor:not-allowed}
     .foot{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px 12px;color:rgba(255,255,255,.55);font-size:11px}
     .pill{border:1px solid var(--stroke);padding:6px 10px;border-radius:999px;background: rgba(255,255,255,.04)}
-
-    /* popup banner */
-    .toastWrap{
-      position:fixed;
-      left:0; right:0; top:14px;
-      display:flex;
-      justify-content:center;
-      pointer-events:none;
-      z-index:999;
-    }
-    .toast{
-      pointer-events:auto;
-      width:min(520px, calc(100% - 36px));
-      border:1px solid rgba(255,79,216,.35);
-      background: linear-gradient(90deg, rgba(255,79,216,.16), rgba(155,92,255,.12));
-      border-radius:16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.35);
-      padding:12px 12px;
-      display:flex;
-      gap:10px;
-      align-items:flex-start;
-      animation: pop .18s ease-out;
-    }
-    @keyframes pop{
-      from{ transform: translateY(-8px); opacity:0 }
-      to{ transform: translateY(0); opacity:1 }
-    }
-    .toast .tIco{
-      width:34px;height:34px;border-radius:14px;
-      background: rgba(255,255,255,.10);
-      border:1px solid rgba(255,255,255,.14);
-      display:flex;align-items:center;justify-content:center;
-      font-weight:900;
-      flex:0 0 auto;
-    }
-    .toast b{display:block;font-size:13px}
-    .toast span{display:block;color:rgba(255,255,255,.75);font-size:12px;margin-top:2px;line-height:1.25}
-    .toast .x{
-      margin-left:auto;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      color:rgba(255,255,255,.85);
-      border-radius:999px;
-      padding:6px 10px;
-      font-size:12px;
-      cursor:pointer;
-    }
   </style>
 </head>
 <body>
-
-<div class="toastWrap" id="toastWrap" style="display:none">
-  <div class="toast" role="status" aria-live="polite">
-    <div class="tIco">✨</div>
-    <div>
-      <b id="toastTitle">Nový chatbot pro firmu</b>
-      <span id="toastText">Nyní se můžete ptát demo asistenta pro představu, jak by odpovídal u vás.</span>
-    </div>
-    <button class="x" id="toastClose" type="button">OK</button>
-  </div>
-</div>
 
 <div class="wrap">
   <div class="widget">
@@ -292,13 +231,6 @@ const modeBadge = document.getElementById("modeBadge");
 const topTitle = document.getElementById("topTitle");
 const topSub = document.getElementById("topSub");
 
-const toastWrap = document.getElementById("toastWrap");
-const toastTitle = document.getElementById("toastTitle");
-const toastText = document.getElementById("toastText");
-const toastClose = document.getElementById("toastClose");
-
-toastClose.onclick = () => (toastWrap.style.display = "none");
-
 function setStatus(t){ statusEl.textContent = t; }
 
 function setMode(m){
@@ -356,7 +288,7 @@ function addTiny(text){
   scrollBottom();
 }
 
-/* personalized sticky banner inside chat */
+/* ✅ one banner in chat – no sticky, no overlay */
 function ensureContextBanner(){
   const existing = document.getElementById("contextBanner");
   const name = (state.companyName || "").trim();
@@ -368,7 +300,7 @@ function ensureContextBanner(){
 
   if(existing) {
     existing.querySelector("b").textContent = `Chatbot ukázka pro firmu ${name}`;
-    existing.querySelector("span").textContent = "Nyní se můžete ptát demo asistenta – pro představu, jak by odpovídal u vás.";
+    existing.querySelector("span").textContent = "Teď se můžete ptát – ukázka odpovědí podle vašeho webu / zadání.";
     return;
   }
 
@@ -376,15 +308,9 @@ function ensureContextBanner(){
   b.className = "contextBanner";
   b.id = "contextBanner";
   b.innerHTML = `<b>Chatbot ukázka pro firmu ${escapeHtml(name)}</b>
-                 <span>Nyní se můžete ptát demo asistenta – pro představu, jak by odpovídal u vás.</span>`;
+                 <span>Teď se můžete ptát – ukázka odpovědí podle vašeho webu / zadání.</span>`;
+  // put at top of chat flow
   chat.prepend(b);
-}
-
-function showPersonalizedToast(){
-  const name = (state.companyName || "").trim() || prettyDomain(state.url || "") || "vaši firmu";
-  toastTitle.textContent = `Nový chatbot pro firmu ${name}`;
-  toastText.textContent = "Nyní se můžete ptát demo asistenta – pro představu, jak by mohl odpovídat i u vás.";
-  toastWrap.style.display = "flex";
 }
 
 /* HELPERS */
@@ -428,23 +354,15 @@ function titleizeFromDomain(domain){
     .join(" ");
 }
 
-/* parse seed block:
-   Firma: JH Dental
-   Dotazy:
-   - Kolik stojí…
-   - Jak dlouho…
-   - Kde…
-*/
+/* parse seed block */
 function parseSeedInput(text){
   const t = String(text||"").trim();
   let company = "";
   let qs = [];
 
-  // company
   const m1 = t.match(/firma\s*:\s*(.+)/i);
   if(m1 && m1[1]) company = m1[1].split("\n")[0].trim();
 
-  // questions lines
   const lines = t.split("\n").map(x=>x.trim()).filter(Boolean);
   for(const ln of lines){
     if(/^(-|\u2022|\*)\s+/.test(ln)){
@@ -453,7 +371,6 @@ function parseSeedInput(text){
     }
   }
 
-  // fallback: if no bullet lines, try split by " ; "
   if(qs.length<3){
     const parts = t.split(/[;]+/).map(x=>x.trim()).filter(Boolean);
     const probableQs = parts.filter(p => p.length>8 && (p.includes("?") || p.toLowerCase().startsWith("kolik") || p.toLowerCase().startsWith("jak") || p.toLowerCase().startsWith("kdy") || p.toLowerCase().startsWith("kde")));
@@ -536,7 +453,6 @@ function buildDemoCard(){
     "Sběr poptávek 24/7 a úspora času na telefonu"
   ];
 
-  // QAs = buď z seed, nebo default
   const seed = Array.isArray(state.seedQuestions) ? state.seedQuestions : [];
   const qas = seed.length===3 ? [
     {q: seed[0], a:"Chatbot odpoví stručně a srozumitelně, případně se doptá na 1–2 detaily."},
@@ -577,7 +493,6 @@ function renderDemoPreview(){
       <div class="demoTitle">Ukázka pro firmu: ${escapeHtml(c.name)}</div>
       <div class="demoSub">${escapeHtml(subLine)}</div>
 
-      <!-- SLIDE 1 -->
       <div class="demoBox">
         <b>Co by chatbot u vás dělal</b>
         <ul class="list">${bulletsHtml}</ul>
@@ -586,7 +501,6 @@ function renderDemoPreview(){
         </div>
       </div>
 
-      <!-- SLIDE 2 -->
       <div class="demoBox">
         <b>Jak vypadá odpovídání (3 příklady) + mini flow</b>
         <ul style="margin:0;padding-left:16px">${qaHtml}</ul>
@@ -614,7 +528,6 @@ function renderDemoPreview(){
   saveState();
 
   ensureContextBanner();
-  showPersonalizedToast();
   add("bot","Teď se klidně ptejte — tohle je demo chatbota pro vaši firmu. 🙂");
 }
 
@@ -642,50 +555,44 @@ Firma: JH Dental
   }
 }
 
-/* MENU */
+/* MENU (✅ simplified to 2 tiles, no extra scrolling) */
 function renderMenu(){
   const hasUrl = !!(state.urlSaved && state.url);
-  const hasCtx = !!(getContext() && getContext().length > 80);
 
   const html = `
-    <div><b>Ukázku připravím pro váš web.</b><br>
-      <span style="color:rgba(255,255,255,.68)">Vyberte, co chcete udělat:</span>
+    <div>
+      <b>Ukázku připravím pro váš web.</b><br>
+      <span style="color:rgba(255,255,255,.68)">Vyberte jednu možnost:</span>
     </div>
 
     <div class="grid" style="margin-top:10px">
       <div class="tile" data-action="demo">
         <div class="k">
           <div class="ico">▶</div>
-          <div><b>Získat ukázku zdarma</b><span>Zadáte web a hned uvidíte ukázku</span></div>
+          <div>
+            <b>Získat ukázku</b>
+            <span>Zadáte web a hned uvidíte náhled</span>
+          </div>
         </div>
       </div>
 
       <div class="tile" data-action="what">
         <div class="k">
           <div class="ico">⚙</div>
-          <div><b>Co umí chatbot?</b><span>Rychlý přehled</span></div>
-        </div>
-      </div>
-
-      <div class="tile full" data-action="ask">
-        <div class="k">
-          <div class="ico">?</div>
-          <div><b>Zeptejte se AI</b><span>Napište libovolný dotaz</span></div>
-        </div>
-      </div>
-
-      ${hasUrl ? `
-        <div class="tile full" data-action="show_demo">
-          <div class="k">
-            <div class="ico">${hasCtx ? "✓" : "!"}</div>
-            <div>
-              <b>Zobrazit ukázku pro uložený web</b>
-              <span>${escapeHtml(prettyDomain(state.url))} ${hasCtx ? "• připraveno" : "• web může blokovat načtení"}</span>
-            </div>
+          <div>
+            <b>Co umí chatbot?</b>
+            <span>Stručný přehled</span>
           </div>
         </div>
-      ` : ``}
+      </div>
     </div>
+
+    ${hasUrl ? `
+      <div class="hint" style="margin-top:8px">
+        Uložený web: <b style="color:rgba(255,255,255,.82)">${escapeHtml(prettyDomain(state.url))}</b>
+        • napište „ukázka“ pro zobrazení náhledu.
+      </div>
+    ` : ``}
   `;
   add("bot", html, true);
 
@@ -697,16 +604,13 @@ function renderMenu(){
 
 function renderCapabilities(){
   const html = `
-    <div><b>Chatbot pomáhá s prodejem i zákaznickou podporou.</b><br>
-      <span style="color:rgba(255,255,255,.68)">Co zvládne:</span>
-    </div>
+    <div><b>Co umí chatbot (stručně):</b></div>
     <ul class="list">
       <li><span class="check">✓</span><span>FAQ: cena, služby, termíny, postup</span></li>
       <li><span class="check">✓</span><span>Sběr poptávek a kvalifikace zájemců</span></li>
-      <li><span class="check">✓</span><span>Podpora: navigace, návody, reklamace</span></li>
-      <li><span class="check">✓</span><span>Směrování na správný kontakt / stránku</span></li>
-      <li><span class="check">✓</span><span>Možnost učení z podkladů firmy (knowledge base)</span></li>
+      <li><span class="check">✓</span><span>Navigace na správný kontakt / stránku</span></li>
     </ul>
+    <div class="hint" style="margin-top:6px">Pro ukázku podle vašeho webu klikněte na „Získat ukázku“.</div>
   `;
   add("bot", html, true);
 }
@@ -715,46 +619,11 @@ function handleMenuAction(action){
   if(action==="demo"){
     setMode("url");
     add("bot","Zadejte prosím web (stačí doména). Ukázku připravím hned.");
-    addHint("Pozn.: Některé velké weby automatické načítání blokují — v tom případě ukážeme demo podle 3 vašich dotazů.");
+    addHint("Pozn.: Některé weby automatické načítání blokují — v tom případě ukážeme demo podle 3 vašich dotazů.");
     input.focus();
     return;
   }
   if(action==="what"){ renderCapabilities(); return; }
-  if(action==="ask"){ setMode("chat"); add("bot","Jasně — zeptejte se. 🙂"); input.focus(); return; }
-
-  if(action==="show_demo"){
-    setMode("chat");
-    // if missing context, try again but fail gracefully
-    if(!getContext()){
-      add("bot","Připravuji ukázku…");
-      (async ()=>{
-        try{
-          setStatus("načítám…");
-          const txt = await scrapeHomepage(state.url);
-          setContext(txt);
-          // company auto from domain if empty
-          if(!state.companyName) state.companyName = titleizeFromDomain(prettyDomain(state.url));
-          saveState();
-          ensureContextBanner();
-          renderDemoPreview();
-        }catch(e){
-          // graceful fallback: go seed mode
-          setContext("");
-          saveState();
-          add("bot","Tenhle web bohužel nedovolil automatické načtení (některé weby to blokují).");
-          add("bot","Nevadí — napište jméno firmy a 3 typické dotazy zákazníků a ukážu demo odpovědí.");
-          setMode("seed");
-          input.focus();
-          if(DEBUG) add("bot","DEBUG scrape error: "+String(e));
-        }finally{
-          setStatus("připraveno");
-        }
-      })();
-      return;
-    }
-    renderDemoPreview();
-    return;
-  }
 }
 
 /* INTENT: “ukaž ukázku” */
@@ -820,7 +689,7 @@ Firma: JH Dental
       }
     }
 
-    // URL mode → save + try scrape + show demo (no technical text)
+    // URL mode → save + try scrape + show demo
     if(state.mode==="url"){
       if(!looksValidUrl(t)){
         add("bot","Tohle nevypadá jako web. Zkuste prosím třeba „muj-web.cz“.");
@@ -830,11 +699,9 @@ Firma: JH Dental
 
       const url = normalizeUrl(t);
       state.url = url;
-      // auto company name from domain (user can rename later)
       if(!state.companyName) state.companyName = titleizeFromDomain(prettyDomain(url));
       saveState();
 
-      // 1) save to Sheets
       const r = await saveUrlToSheets(url);
       if(!r.ok){
         if(DEBUG) add("bot","Chyba ukládání do Sheets:\n"+r.raw);
@@ -847,7 +714,6 @@ Firma: JH Dental
 
       add("bot","Děkuji — mám to. ✅ Připravuji ukázku…");
 
-      // 2) scrape homepage (but fail gracefully)
       try{
         setStatus("načítám…");
         const txt = await scrapeHomepage(url);
@@ -874,7 +740,7 @@ Firma: JH Dental
     setMode("chat");
 
     if(!getContext() && !state.seedQuestions?.length){
-      add("bot","Tip: Pro přesnější ukázku zadejte web (Získat ukázku zdarma) nebo doplňte 3 typické dotazy.");
+      add("bot","Tip: Pro přesnější ukázku zadejte web (Získat ukázku) nebo doplňte 3 typické dotazy.");
     }
 
     const ans = await askDemoAI(t);
@@ -900,7 +766,6 @@ function init(){
   setStatus("připraveno");
   refreshTopBar();
 
-  // default mode
   setMode("menu");
 
   if(state.urlSaved && state.url){

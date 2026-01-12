@@ -4,26 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Chatbot widget demo</title>
-  <style>
-    :root{
-      /* === Lovable vibe: dark + cyan === */
-      --bg:#06101f;              /* page */
-      --panel:#071a2f;           /* widget panel */
-      --panel2:#061526;          /* inner */
-      --stroke:rgba(255,255,255,.10);
-      --text:rgba(255,255,255,.92);
-      --muted:rgba(255,255,255,.65);
-
-      --cyan:#26d7ff;
-      --cyan2:#00a8ff;
-      --cyanSoft:rgba(38,215,255,.12);
-
-      --ok:#3ee07a;
-      --danger:#ff5c5c;
-
-      --shadow: 0 24px 70px rgba(0,0,0,.45);
-    }
-
+ <style>
+  :root{
+    /* === Lovable vibe: dark + cyan === */
+    --bg:#06101f;
+    --panel:#071a2f;
+    --panel2:#061526;
+    --stroke:rgba(255,255,255,.10);
+    --text:rgba(255,255,255,.92);
+    --muted:rgba(255,255,255,.65);
+    --cyan:#26d7ff;
+    --cyan2:#00a8ff;
+    --cyanSoft:rgba(38,215,255,.12);
+    --ok:#3ee07a;
+    --danger:#ff5c5c;
+    --shadow: 0 24px 70px rgba(0,0,0,.45);
+  }
     html,body{height:100%}
     body{
       margin:0;
@@ -39,16 +35,8 @@
        nastav DISPLAY_LAUNCHER=false v JS dole
        ========================================================= */
 
-    /* ===== Floating launcher + nudge ===== */
-    .cb-launcher{
-      position:fixed;
-      right:18px; bottom:18px;
-      display:flex;
-      align-items:flex-end;
-      gap:10px;
-      z-index:9999;
-      pointer-events:none; /* allow only buttons inside */
-    }
+
+ 
 
     /* animated nudge rail */
     .cb-nudge{
@@ -456,7 +444,7 @@
  *  - true: zobrazí se nudge + bubble (na běžných webech)
  *  - false: když Lovable má svůj launcher a ty nechceš duplikaci
  *  ========================== */
-const DISPLAY_LAUNCHER = true;
+const DISPLAY_LAUNCHER = false;
 
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 

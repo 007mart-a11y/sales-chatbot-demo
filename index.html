@@ -527,33 +527,17 @@ const leadOk = document.getElementById("leadOk");
 const cbLeadSubmit = document.getElementById("cbLeadSubmit");
 
 /** UI helpers */
-function openPanel(){ cbPanel.classList.add("open"); cbInput.focus(); }
+function openPanel(){
+  cbPanel.classList.add("open");
+
+  // vykresli obsah až ve chvíli, kdy je panel otevřený (Lovable drawer je vidět)
+  renderWelcome();
+
+  setTimeout(() => cbInput.focus(), 50);
+}
 function closePanel(){ cbPanel.classList.remove("open"); }
 
-if(!DISPLAY_LAUNCHER){
-  cbLauncher.style.display = "none";
 
-  // Lovable otevře svůj drawer/panel až po kliknutí.
-  // Tady hlídáme, kdy se iframe opravdu zobrazí, a pak otevřeme chat.
-  let openedOnce = false;
-
-  const tryOpen = () => {
-    if (openedOnce) return;
-    // když je stránka/iframe vidět (Lovable už otevřel panel)
-    if (document.visibilityState === "visible") {
-      openedOnce = true;
-      openPanel();
-    }
-  };
-
-  document.addEventListener("visibilitychange", tryOpen);
-  window.addEventListener("focus", tryOpen);
-  setTimeout(tryOpen, 200);   // jistota po renderu
-  setTimeout(tryOpen, 900);   // jistota pro pomalejší otevření
-} else {
-  cbBubble.addEventListener("click", openPanel);
-  cbNudge.addEventListener("click", openPanel);
-}
 function openLeadModal(){
   leadErr.style.display = "none";
   leadOk.style.display = "none";

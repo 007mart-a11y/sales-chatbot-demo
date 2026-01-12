@@ -880,9 +880,8 @@ cbInput.addEventListener("keydown", (e)=>{ if(e.key === "Enter") send(); });
 
 /* Init */
 function init(){
-  renderWelcome();
-}
-init();
+  openPanel(); // openPanel si udělá renderWelcome + focus
+}();
 
   // otevřít chat hned – Lovable jen zobrazí panel
   openPanel();

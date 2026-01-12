@@ -34,6 +34,11 @@
       color:var(--text);
     }
 
+    /* =========================================================
+       TOGGLE: pokud chceš používat jen Lovable launcher
+       nastav DISPLAY_LAUNCHER=false v JS dole
+       ========================================================= */
+
     /* ===== Floating launcher + nudge ===== */
     .cb-launcher{
       position:fixed;
@@ -137,49 +142,10 @@
     }
     .cb-panel.open{display:block}
 
-    .cb-top{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      padding:12px 12px 10px 12px;
-      border-bottom:1px solid rgba(255,255,255,.08);
-      background: rgba(0,0,0,.12);
-    }
-    .cb-logo{
-      width:34px;height:34px;border-radius:14px;
-      background: rgba(38,215,255,.16);
-      border:1px solid rgba(38,215,255,.22);
-      display:flex;align-items:center;justify-content:center;
-      flex:0 0 auto;
-    }
-    .cb-title{min-width:0; line-height:1.1}
-    .cb-title b{display:block;font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-    .cb-title span{display:block;font-size:11.5px;color:rgba(255,255,255,.70); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-    .cb-tag{
-      margin-left:auto;
-      font-size:11px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid rgba(38,215,255,.22);
-      background: rgba(38,215,255,.10);
-      color:rgba(255,255,255,.85);
-      white-space:nowrap;
-    }
-    .cb-close{
-      margin-left:8px;
-      width:34px;height:34px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      color:rgba(255,255,255,.85);
-      cursor:pointer;
-      display:flex;align-items:center;justify-content:center;
-    }
-
     .cb-body{
       display:flex;
       flex-direction:column;
-      height:calc(100% - 56px);
+      height:100%;
     }
 
     .cb-chat{
@@ -406,8 +372,8 @@
 </head>
 <body>
 
-<!-- Floating launcher -->
-<div class="cb-launcher" aria-label="Chatbot launcher">
+<!-- Floating launcher (optional) -->
+<div class="cb-launcher" id="cbLauncher" aria-label="Chatbot launcher">
   <div class="cb-nudge" id="cbNudge" title="Otevřít demo chatbota">
     <div class="dot"></div>
     <div class="t">
@@ -429,23 +395,8 @@
   </div>
 </div>
 
-<!-- Widget panel -->
+<!-- Widget panel (NO INNER TOP BAR) -->
 <div class="cb-panel" id="cbPanel" role="dialog" aria-label="Chatbot widget">
-  <div class="cb-top">
-    <div class="cb-logo">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="rgba(38,215,255,.9)" stroke-width="2" stroke-linecap="round"/>
-        <path d="M12 6a6 6 0 1 0 0 12" stroke="rgba(255,255,255,.75)" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </div>
-    <div class="cb-title">
-      <b id="cbTopTitle">AI Asistent – DEMO</b>
-      <span id="cbTopSub">Ukázkové odpovědi podle webu / zadání</span>
-    </div>
-    <div class="cb-tag" id="cbModeTag">DEMO</div>
-    <button class="cb-close" id="cbClose" aria-label="Zavřít">✕</button>
-  </div>
-
   <div class="cb-body">
     <div class="cb-chat" id="cbChat"></div>
 
@@ -501,31 +452,33 @@
 
 <script>
 /** ==========================
- *  CONFIG / STORAGE
+ *  TOGGLE: chceš používat náš launcher?
+ *  - true: zobrazí se nudge + bubble (na běžných webech)
+ *  - false: když Lovable má svůj launcher a ty nechceš duplikaci
  *  ========================== */
+const DISPLAY_LAUNCHER = true;
+
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-// endpoints (your existing Netlify functions)
+/** endpoints (your existing Netlify functions) */
 const ENDPOINT_DEMO = "/.netlify/functions/search-demo";
 const ENDPOINT_SCRAPE = "/.netlify/functions/scrape";
 const ENDPOINT_LEAD = "/.netlify/functions/lead";
 
-// storage keys
-const THREAD_KEY = "demo_widget_thread_id_v1";
-const CONTEXT_KEY = "demo_widget_context_v1";
-const STATE_KEY = "demo_widget_state_v1";
-const CTA_KEY = "demo_widget_cta_shown_v1";
+/** storage keys */
+const THREAD_KEY = "demo_widget_thread_id_v2";
+const CONTEXT_KEY = "demo_widget_context_v2";
+const STATE_KEY = "demo_widget_state_v2";
+const CTA_KEY = "demo_widget_cta_shown_v2";
 
-// state
+/** state */
 const defaultState = () => ({
   companyName: "",
   siteUrl: "",
-  urlSaved: false,
   demoTurns: 0,
   demoPreviewShown: false,
   nudgeHidden: false
 });
-
 let state = loadState();
 
 function loadState(){
@@ -537,9 +490,7 @@ function loadState(){
     return defaultState();
   }
 }
-function saveState(){
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
-}
+function saveState(){ localStorage.setItem(STATE_KEY, JSON.stringify(state)); }
 
 const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
 const setThreadId = (id) => id && localStorage.setItem(THREAD_KEY, id);
@@ -548,27 +499,21 @@ const resetThreadId = () => localStorage.removeItem(THREAD_KEY);
 const getContext = () => localStorage.getItem(CONTEXT_KEY) || "";
 const setContext = (t) => localStorage.setItem(CONTEXT_KEY, t || "");
 
-/** ==========================
- *  DOM
- *  ========================== */
+/** DOM */
 const cbPanel = document.getElementById("cbPanel");
-const cbBubble = document.getElementById("cbBubble");
-const cbNudge  = document.getElementById("cbNudge");
-const cbClose  = document.getElementById("cbClose");
-
 const cbChat   = document.getElementById("cbChat");
 const cbInput  = document.getElementById("cbInput");
 const cbSend   = document.getElementById("cbSend");
 
-const cbTopTitle = document.getElementById("cbTopTitle");
-const cbTopSub   = document.getElementById("cbTopSub");
-const cbModeTag  = document.getElementById("cbModeTag");
+const cbLauncher = document.getElementById("cbLauncher");
+const cbBubble = document.getElementById("cbBubble");
+const cbNudge  = document.getElementById("cbNudge");
 
+/** lead modal DOM */
 const cbModalWrap = document.getElementById("cbModalWrap");
 const cbModalClose = document.getElementById("cbModalClose");
 const cbLeadCancel = document.getElementById("cbLeadCancel");
 const cbLeadForm = document.getElementById("cbLeadForm");
-
 const leadName = document.getElementById("leadName");
 const leadPhone = document.getElementById("leadPhone");
 const leadEmail = document.getElementById("leadEmail");
@@ -577,41 +522,30 @@ const leadErr = document.getElementById("leadErr");
 const leadOk = document.getElementById("leadOk");
 const cbLeadSubmit = document.getElementById("cbLeadSubmit");
 
-/** ==========================
- *  UI helpers
- *  ========================== */
-function openPanel(){
-  cbPanel.classList.add("open");
-  cbInput.focus();
-  // hide nudge after open once
-  if(!state.nudgeHidden){
-    state.nudgeHidden = true;
-    saveState();
-    cbNudge.style.display = "none";
-  }
-}
-function closePanel(){
-  cbPanel.classList.remove("open");
-}
-cbBubble.addEventListener("click", openPanel);
-cbNudge.addEventListener("click", openPanel);
-cbClose.addEventListener("click", closePanel);
+/** UI helpers */
+function openPanel(){ cbPanel.classList.add("open"); cbInput.focus(); }
+function closePanel(){ cbPanel.classList.remove("open"); }
 
-// modal
+if(!DISPLAY_LAUNCHER){
+  cbLauncher.style.display = "none";
+  // Panel může být otevřený/řízený zvenku (Lovable)
+  // Pokud chceš vždy otevřené:
+  // cbPanel.classList.add("open");
+} else {
+  cbBubble.addEventListener("click", openPanel);
+  cbNudge.addEventListener("click", openPanel);
+}
+
 function openLeadModal(){
   leadErr.style.display = "none";
   leadOk.style.display = "none";
   cbModalWrap.classList.add("open");
   leadName.focus();
 }
-function closeLeadModal(){
-  cbModalWrap.classList.remove("open");
-}
+function closeLeadModal(){ cbModalWrap.classList.remove("open"); }
 cbModalClose.addEventListener("click", closeLeadModal);
 cbLeadCancel.addEventListener("click", closeLeadModal);
-cbModalWrap.addEventListener("click", (e)=>{
-  if(e.target === cbModalWrap) closeLeadModal();
-});
+cbModalWrap.addEventListener("click", (e)=>{ if(e.target===cbModalWrap) closeLeadModal(); });
 
 function scrollBottom(){
   requestAnimationFrame(()=>{ cbChat.scrollTop = cbChat.scrollHeight; });
@@ -669,9 +603,7 @@ function normalizeUrl(u){
   }
 }
 
-/** ==========================
- *  Demo preview (compact)
- *  ========================== */
+/** Demo preview (compact) */
 function renderCompactPreview(){
   const domain = prettyDomain(state.siteUrl || "");
   const company = (state.companyName || "").trim() || titleizeFromDomain(domain) || "vaši firmu";
@@ -721,12 +653,11 @@ function maybeShowCta(){
   if(localStorage.getItem(CTA_KEY) === "1") return;
   if(state.demoTurns >= 2){
     localStorage.setItem(CTA_KEY, "1");
-    // Do chatu nepíšeme CTA – rovnou otevřeme modal jemně po 2 turnech?
-    // Necháme to "měkké": zobrazíme jen kartu s tlačítkem, bez spamování.
+
     const html = `
       <div class="cb-card" style="border-color:rgba(38,215,255,.18);background:linear-gradient(90deg, rgba(38,215,255,.10), rgba(0,168,255,.06));">
         <b>Chcete plnou verzi chatbota pro váš web?</b>
-        <span>Vyplňte kontakt a my vám pošleme konkrétní návrh použití pro váš typ zákazníků. (Jméno, telefon, e-mail)</span>
+        <span>Vyplňte kontakt a my vám pošleme konkrétní návrh použití pro váš typ zákazníků.</span>
         <div class="cb-miniRow">
           <span class="cb-chip" data-action="lead">Otevřít formulář</span>
           <span class="cb-chip gray" data-action="later">Později</span>
@@ -745,9 +676,7 @@ function maybeShowCta(){
   }
 }
 
-/** ==========================
- *  Backends
- *  ========================== */
+/** Backends */
 async function scrapeHomepage(url){
   const r = await fetch(ENDPOINT_SCRAPE,{
     method:"POST",
@@ -788,26 +717,21 @@ async function sendLead(payload){
   return { ok: r.ok, raw: txt };
 }
 
-/** ==========================
- *  Lead form submit
- *  ========================== */
+/** Lead submit */
 function isValidEmail(s){
   return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(String(s||""));
 }
-function onlyDigits(s){
-  return String(s||"").replace(/\D+/g,"");
-}
+function onlyDigits(s){ return String(s||"").replace(/\D+/g,""); }
+
 cbLeadForm.addEventListener("submit", async (e)=>{
   e.preventDefault();
   leadErr.style.display = "none";
   leadOk.style.display = "none";
 
   const name = leadName.value.trim();
-  const phoneRaw = leadPhone.value.trim();
+  const phone = onlyDigits(leadPhone.value.trim());
   const email = leadEmail.value.trim();
   const note = leadNote.value.trim();
-
-  const phone = onlyDigits(phoneRaw);
 
   const missing = [];
   if(!name) missing.push("jméno");
@@ -843,7 +767,6 @@ cbLeadForm.addEventListener("submit", async (e)=>{
     }
 
     leadOk.style.display = "block";
-    // close after short moment
     setTimeout(()=>{
       closeLeadModal();
       addMsg("bot", "Děkujeme. ✅ Ozveme se co nejdříve a navrhneme řešení na míru.");
@@ -855,26 +778,11 @@ cbLeadForm.addEventListener("submit", async (e)=>{
   }
 });
 
-/** ==========================
- *  Conversation flow
- *  ========================== */
-function updateTopBar(){
-  const company = (state.companyName || "").trim();
-  if(company){
-    cbTopTitle.textContent = `AI Asistent – ${company}`;
-    cbTopSub.textContent = "DEMO ukázka • odpovědi podle webu / zadání";
-  }else{
-    cbTopTitle.textContent = "AI Asistent – DEMO";
-    cbTopSub.textContent = "Ukázkové odpovědi podle webu / zadání";
-  }
-  cbModeTag.textContent = "DEMO";
-}
-
+/** Flow */
 function renderWelcome(){
   addMsg("bot","Dobrý den 👋");
   addHint("Toto je rychlá ukázka. Zadejte web (doménu) a vyzkoušejte odpovědi jako zákazník.");
 
-  // compact first card (two actions)
   const html = `
     <div class="cb-card">
       <b>Chcete ukázku pro váš web?</b>
@@ -886,12 +794,13 @@ function renderWelcome(){
     </div>
   `;
   addMsg("bot", html, true);
+
   const last = cbChat.lastElementChild;
   last.querySelectorAll("[data-action]").forEach(el=>{
     el.addEventListener("click", ()=>{
       const a = el.dataset.action;
       if(a==="how"){
-        addMsg("bot","Demo ukazuje styl odpovědí, strukturu informací a práci s obsahem webu. V plné verzi navíc sbírá poptávky a kvalifikuje zájemce.");
+        addMsg("bot","Demo ukazuje styl odpovědí a práci s obsahem webu. V plné verzi navíc sbírá poptávky (formulář), kvalifikuje zájemce a umí posílat data do e-mailu/CRM/Sheets.");
       }
       if(a==="lead"){
         openLeadModal();
@@ -901,7 +810,6 @@ function renderWelcome(){
 }
 
 async function handleUserMessage(text){
-  // reset command
   if(text.toLowerCase() === "reset"){
     resetThreadId();
     localStorage.removeItem(CONTEXT_KEY);
@@ -909,18 +817,16 @@ async function handleUserMessage(text){
     localStorage.removeItem(CTA_KEY);
     state = defaultState();
     cbChat.innerHTML = "";
-    updateTopBar();
     renderWelcome();
     return;
   }
 
-  // if user sends url/domain first time -> scrape
+  // first time url/domain -> scrape
   if(!state.siteUrl && looksValidUrl(text)){
     const url = normalizeUrl(text);
     state.siteUrl = url;
     if(!state.companyName) state.companyName = titleizeFromDomain(prettyDomain(url));
     saveState();
-    updateTopBar();
 
     addMsg("bot","Děkuji — připravuji ukázku…");
 
@@ -938,7 +844,6 @@ async function handleUserMessage(text){
     return;
   }
 
-  // normal demo reply
   const ans = await askDemoAI(text);
   addMsg("bot", ans);
 
@@ -947,11 +852,8 @@ async function handleUserMessage(text){
   maybeShowCta();
 }
 
-/** ==========================
- *  Send button
- *  ========================== */
+/** Send */
 let sending = false;
-
 async function send(){
   const t = cbInput.value.trim();
   if(!t || sending) return;
@@ -971,28 +873,15 @@ async function send(){
     cbInput.focus();
   }
 }
-
 cbSend.addEventListener("click", send);
-cbInput.addEventListener("keydown", (e)=>{
-  if(e.key === "Enter") send();
-});
+cbInput.addEventListener("keydown", (e)=>{ if(e.key === "Enter") send(); });
 
-/** ==========================
- *  Init
- *  ========================== */
+/** Init */
 (function init(){
-  // if user already opened widget earlier, hide nudge
-  if(state.nudgeHidden) cbNudge.style.display = "none";
-
-  updateTopBar();
   renderWelcome();
 
-  // optional: after 60s of page load, show gentle nudge again (if not opened)
-  setTimeout(()=>{
-    if(!cbPanel.classList.contains("open") && !state.nudgeHidden){
-      cbNudge.style.display = "flex";
-    }
-  }, 60000);
+  // if launcher shown, allow nudge hide after first open etc.
+  // if DISPLAY_LAUNCHER=false, Lovable řídí otevření
 })();
 </script>
 </body>

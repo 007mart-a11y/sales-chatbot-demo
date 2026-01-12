@@ -532,14 +532,28 @@ function closePanel(){ cbPanel.classList.remove("open"); }
 
 if(!DISPLAY_LAUNCHER){
   cbLauncher.style.display = "none";
-  // Panel může být otevřený/řízený zvenku (Lovable)
-  // Pokud chceš vždy otevřené:
-  // cbPanel.classList.add("open");
+
+  // Lovable otevře svůj drawer/panel až po kliknutí.
+  // Tady hlídáme, kdy se iframe opravdu zobrazí, a pak otevřeme chat.
+  let openedOnce = false;
+
+  const tryOpen = () => {
+    if (openedOnce) return;
+    // když je stránka/iframe vidět (Lovable už otevřel panel)
+    if (document.visibilityState === "visible") {
+      openedOnce = true;
+      openPanel();
+    }
+  };
+
+  document.addEventListener("visibilitychange", tryOpen);
+  window.addEventListener("focus", tryOpen);
+  setTimeout(tryOpen, 200);   // jistota po renderu
+  setTimeout(tryOpen, 900);   // jistota pro pomalejší otevření
 } else {
   cbBubble.addEventListener("click", openPanel);
   cbNudge.addEventListener("click", openPanel);
 }
-
 function openLeadModal(){
   leadErr.style.display = "none";
   leadOk.style.display = "none";
@@ -883,6 +897,8 @@ cbInput.addEventListener("keydown", (e)=>{ if(e.key === "Enter") send(); });
 /* Init */
 function init(){
   renderWelcome();
+}
+init();
 
   // otevřít chat hned – Lovable jen zobrazí panel
   openPanel();

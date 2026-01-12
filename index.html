@@ -63,20 +63,11 @@
     .chat{
       padding:12px;
       display:flex;flex-direction:column;gap:10px;
-      max-height:64vh; overflow:auto;
+      max-height:72vh; overflow:auto;
       scroll-behavior:smooth;
     }
 
-    /* ✅ ONE compact banner in chat (NOT sticky, NOT overlay) */
-    .contextBanner{
-      border:1px solid rgba(255,79,216,.28);
-      background: linear-gradient(90deg, rgba(255,79,216,.14), rgba(155,92,255,.10));
-      border-radius:14px;
-      padding:10px 12px;
-    }
-    .contextBanner b{font-size:12.5px; display:block}
-    .contextBanner span{font-size:12px; color:rgba(255,255,255,.72); display:block; margin-top:2px}
-
+    /* message bubble */
     .msg{
       max-width:92%;
       padding:10px 12px;
@@ -88,17 +79,29 @@
     }
     .bot{align-self:flex-start}
     .user{align-self:flex-end;background: rgba(62,224,122,.10); border-color: rgba(62,224,122,.20)}
-    .hint{color:var(--muted); font-size:12px}
-    .tiny{color:rgba(255,255,255,.55); font-size:11px}
+    .hint{color:var(--muted); font-size:12px; max-width:92%}
+    .tiny{color:rgba(255,255,255,.55); font-size:11px; max-width:92%}
 
-    /* ✅ smaller, 2 tiles only */
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+    /* compact banner inside chat (NOT sticky, NOT full width) */
+    .contextBanner{
+      max-width:92%;
+      align-self:flex-start;
+      border:1px solid rgba(255,79,216,.28);
+      background: linear-gradient(90deg, rgba(255,79,216,.14), rgba(155,92,255,.10));
+      border-radius:14px;
+      padding:10px 12px;
+    }
+    .contextBanner b{font-size:12.5px; display:block}
+    .contextBanner span{font-size:12px; color:rgba(255,255,255,.72); display:block; margin-top:2px; line-height:1.25}
+
+    /* compact menu tiles */
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
     .tile{
       border:1px solid rgba(255,79,216,.28);
       background: linear-gradient(180deg, rgba(255,79,216,.08), rgba(155,92,255,.05));
       border-radius:16px;padding:10px;cursor:pointer;user-select:none;
       transition: transform .08s ease, filter .08s ease;
-      min-height:56px; /* smaller */
+      min-height:56px;
     }
     .tile:hover{transform:translateY(-1px); filter:brightness(1.06)}
     .tile .k{display:flex; align-items:center; gap:10px; margin-bottom:0}
@@ -113,8 +116,9 @@
     .tile b{font-size:13px}
     .tile span{display:block; font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.1}
 
+    /* lists */
     .list{margin:6px 0 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
-    .list li{display:flex;gap:10px;align-items:flex-start;color:var(--muted);font-size:13px}
+    .list li{display:flex;gap:10px;align-items:flex-start;color:var(--muted);font-size:12.5px}
     .check{
       width:18px;height:18px;border-radius:7px;
       border:1px solid rgba(255,255,255,.18);
@@ -123,9 +127,10 @@
       color: var(--ok);font-weight:900;flex:0 0 auto;margin-top:1px;
     }
 
-    .demoCard{border:1px solid rgba(255,255,255,.12);background: rgba(255,255,255,.04);border-radius:16px;padding:12px}
-    .demoTitle{font-weight:800;margin:0 0 8px 0;font-size:13px}
-    .demoSub{color:var(--muted);font-size:12px;margin:0 0 10px 0}
+    /* demo preview card (narrower + less padding) */
+    .demoCard{max-width:92%; align-self:flex-start; border:1px solid rgba(255,255,255,.12);background: rgba(255,255,255,.04);border-radius:16px;padding:10px}
+    .demoTitle{font-weight:800;margin:0 0 6px 0;font-size:13px}
+    .demoSub{color:var(--muted);font-size:12px;margin:0 0 8px 0; line-height:1.25}
     .demoBox{border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;background: rgba(0,0,0,.14);margin-top:10px}
     .demoBox b{display:block;font-size:12px;margin-bottom:6px}
     .miniActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
@@ -139,6 +144,29 @@
       border-color: rgba(255,255,255,.14);
       background: rgba(255,255,255,.06);
     }
+
+    /* CTA / Lead card (professional) */
+    .leadCard{
+      max-width:92%;
+      align-self:flex-start;
+      border:1px solid rgba(62,224,122,.20);
+      background: linear-gradient(90deg, rgba(62,224,122,.10), rgba(255,79,216,.06));
+      border-radius:16px;
+      padding:10px 12px;
+    }
+    .leadCard b{display:block;font-size:13px}
+    .leadCard span{display:block;font-size:12px;color:rgba(255,255,255,.72);margin-top:4px;line-height:1.25}
+    .leadBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .leadBtn{
+      border:1px solid rgba(62,224,122,.28);
+      background: rgba(62,224,122,.10);
+      padding:7px 10px;border-radius:999px;font-size:12px;cursor:pointer;user-select:none;
+    }
+    .leadBtn.gray{
+      border-color: rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+    }
+    .leadBtn:hover{filter:brightness(1.08)}
 
     .row{display:flex;gap:10px;padding:12px;border-top:1px solid var(--stroke);background: rgba(0,0,0,.12)}
     input{
@@ -166,7 +194,7 @@
         <b id="topTitle">AI Chatbot</b>
         <span id="topSub">Ukázka zdarma • rychlé vyzkoušení</span>
       </div>
-      <div class="badge" id="modeBadge">MENU</div>
+      <div class="badge" id="modeBadge">DEMO</div>
     </div>
 
     <div id="chat" class="chat"></div>
@@ -186,15 +214,17 @@
 <script>
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-/* THREAD */
+/* THREAD (demo) */
 const THREAD_KEY_DEMO = "demo_chatbot_thread_id";
 const getThreadId = () => localStorage.getItem(THREAD_KEY_DEMO) || "";
 const setThreadId = id => id && localStorage.setItem(THREAD_KEY_DEMO, id);
 const resetThread = () => localStorage.removeItem(THREAD_KEY_DEMO);
 
 /* STATE */
-const STATE_KEY = "sales_demo_state_v4";
+const STATE_KEY = "sales_demo_state_v5";
 const CONTEXT_KEY = "sales_demo_homepage_context_v1";
+const CTA_KEY = "sales_demo_cta_shown_v1";
+const LEAD_KEY = "sales_demo_lead_v1";
 
 const defaultState = () => ({
   mode: "menu",       // menu | url | seed | chat
@@ -203,7 +233,8 @@ const defaultState = () => ({
   demoShown: false,
   contextReady: false,
   companyName: "",
-  seedQuestions: []   // fallback questions when scrape blocked
+  seedQuestions: [],
+  demoTurns: 0
 });
 let state = loadState();
 
@@ -219,6 +250,8 @@ function resetState(){
   state = defaultState();
   localStorage.removeItem(STATE_KEY);
   localStorage.removeItem(CONTEXT_KEY);
+  localStorage.removeItem(CTA_KEY);
+  localStorage.removeItem(LEAD_KEY);
   setMode("menu");
 }
 
@@ -233,9 +266,12 @@ const topSub = document.getElementById("topSub");
 
 function setStatus(t){ statusEl.textContent = t; }
 
+function setBadge(text){
+  modeBadge.textContent = text;
+}
+
 function setMode(m){
   state.mode = m; saveState();
-  modeBadge.textContent = (m==="menu") ? "MENU" : (m==="url") ? "URL" : (m==="seed") ? "DEMO" : "CHAT";
 
   if(m==="url"){
     input.placeholder = "Zadejte web (např. muj-web.cz)";
@@ -288,7 +324,7 @@ function addTiny(text){
   scrollBottom();
 }
 
-/* ✅ one banner in chat – no sticky, no overlay */
+/* banner in chat (narrow) */
 function ensureContextBanner(){
   const existing = document.getElementById("contextBanner");
   const name = (state.companyName || "").trim();
@@ -299,21 +335,20 @@ function ensureContextBanner(){
   }
 
   if(existing) {
-    existing.querySelector("b").textContent = `Chatbot ukázka pro firmu ${name}`;
-    existing.querySelector("span").textContent = "Teď se můžete ptát – ukázka odpovědí podle vašeho webu / zadání.";
+    existing.querySelector("b").textContent = `Ukázka chatbota pro firmu ${name}`;
+    existing.querySelector("span").textContent = "Jste v DEMO režimu: ukázkové odpovědi + rychlý náhled podle webu / zadání.";
     return;
   }
 
   const b = document.createElement("div");
   b.className = "contextBanner";
   b.id = "contextBanner";
-  b.innerHTML = `<b>Chatbot ukázka pro firmu ${escapeHtml(name)}</b>
-                 <span>Teď se můžete ptát – ukázka odpovědí podle vašeho webu / zadání.</span>`;
-  // put at top of chat flow
+  b.innerHTML = `<b>Ukázka chatbota pro firmu ${escapeHtml(name)}</b>
+                 <span>Jste v DEMO režimu: ukázkové odpovědi + rychlý náhled podle webu / zadání.</span>`;
   chat.prepend(b);
 }
 
-/* HELPERS */
+/* helpers */
 function escapeHtml(str){
   return String(str||"")
     .replaceAll("&","&amp;")
@@ -327,7 +362,6 @@ function normalizeUrl(u){
   let s = String(u||"").trim().replace(/\s+/g,"");
   if(!s) return "";
   if(!/^https?:\/\//i.test(s)) s = "https://" + s;
-  // keep only origin (more stable)
   try{
     const url = new URL(s);
     return url.origin;
@@ -346,7 +380,6 @@ function titleizeFromDomain(domain){
   const d = String(domain||"").replace(/^www\./i,"");
   const base = d.split(".")[0] || "";
   if(!base) return "";
-  // jh-dental => JH Dental
   return base
     .split(/[-_]+/g)
     .filter(Boolean)
@@ -380,7 +413,7 @@ function parseSeedInput(text){
   return { company, qs: qs.slice(0,3) };
 }
 
-/* BACKEND CALLS */
+/* BACKEND */
 async function saveUrlToSheets(url){
   const payload = { name:"", phone:"", email:"", message:`Ukázka | URL: ${url} | Source: widget` };
   const r = await fetch("/.netlify/functions/lead",{
@@ -432,7 +465,7 @@ async function askDemoAI(text){
   return d.answer || "";
 }
 
-/* MINI DEMO (lokální ukázka) */
+/* MINI DEMO */
 function buildDemoCard(){
   const domain = prettyDomain(state.url || "");
   const name = (state.companyName || "").trim() || titleizeFromDomain(domain) || (domain ? domain : "vaši firmu");
@@ -448,16 +481,16 @@ function buildDemoCard(){
   if(hasBooking) typeLabel = "rezervace / služby";
 
   const bullets = [
-    "Odpovídá na časté dotazy (cena, termín, postup, služby)",
-    "Navede zákazníka na správnou stránku / kontakt",
+    "Odpoví na časté dotazy (cena, termín, postup, služby)",
+    "Navede zákazníka na správnou stránku nebo kontakt",
     "Sběr poptávek 24/7 a úspora času na telefonu"
   ];
 
   const seed = Array.isArray(state.seedQuestions) ? state.seedQuestions : [];
   const qas = seed.length===3 ? [
-    {q: seed[0], a:"Chatbot odpoví stručně a srozumitelně, případně se doptá na 1–2 detaily."},
-    {q: seed[1], a:"Chatbot vysvětlí postup a doporučí další krok (např. kontakt / termín)."},
-    {q: seed[2], a:"Chatbot nasměruje zákazníka a nabídne rychlé řešení."},
+    {q: seed[0], a:"Odpověď bude stručná, srozumitelná a případně si vyžádá 1–2 doplňující informace."},
+    {q: seed[1], a:"Chatbot vysvětlí postup a doporučí další krok (termín, kontakt, orientační rámec)."},
+    {q: seed[2], a:"Nasměruje zákazníka na správné řešení a nabídne jednoduchý způsob kontaktu."},
   ] : [
     {q:"Kolik to stojí a co je v ceně?", a:"Chatbot dá orientační rámec a doptá se na pár detailů."},
     {q:"Jak rychle to umíte?", a:"Chatbot navrhne další krok a doptá se na termín/lokalitu."},
@@ -471,7 +504,7 @@ function buildDemoCard(){
 
 function renderDemoPreview(){
   if(!state.url){
-    add("bot","Nejdřív prosím zadejte web (Získat ukázku zdarma).");
+    add("bot","Nejdříve prosím zadejte web (Získat ukázku).");
     return;
   }
 
@@ -486,7 +519,7 @@ function renderDemoPreview(){
 
   const subLine = getContext()
     ? `Mini ukázka (okamžitý náhled) • vychází z homepage (${c.typeLabel})`
-    : `Mini ukázka (okamžitý náhled) • web nepovolil automatické načtení, ukázka je orientační`;
+    : `Mini ukázka (okamžitý náhled) • web blokuje automatické načtení, ukázka je orientační`;
 
   const html = `
     <div class="demoCard">
@@ -497,7 +530,7 @@ function renderDemoPreview(){
         <b>Co by chatbot u vás dělal</b>
         <ul class="list">${bulletsHtml}</ul>
         <div style="margin-top:8px;color:rgba(255,255,255,.60);font-size:12px">
-          Ukázka webu: <b style="color:rgba(255,255,255,.82)">${escapeHtml(c.domain || "—")}</b>
+          Web: <b style="color:rgba(255,255,255,.82)">${escapeHtml(c.domain || "—")}</b>
         </div>
       </div>
 
@@ -511,7 +544,7 @@ function renderDemoPreview(){
       </div>
 
       <div class="miniActions">
-        <span class="chip" data-demo="ask">Zeptejte se demo asistenta</span>
+        <span class="chip" data-demo="ask">Zeptat se v DEMO</span>
         <span class="chip alt" data-demo="seed">Upravit jméno + 3 dotazy</span>
       </div>
     </div>
@@ -528,14 +561,15 @@ function renderDemoPreview(){
   saveState();
 
   ensureContextBanner();
-  add("bot","Teď se klidně ptejte — tohle je demo chatbota pro vaši firmu. 🙂");
+  add("bot","Můžete se ptát jako zákazník — ukázka odpovědí je připravená.");
+  maybeShowLeadCta("after_demo_preview");
 }
 
 function handleDemoChip(which){
   if(which==="seed"){
     setMode("seed");
     add("bot",
-`Super — napište prosím:
+`Výborně — napište prosím:
 • jméno firmy
 • 3 nejčastější dotazy zákazníků
 
@@ -549,29 +583,29 @@ Firma: JH Dental
   }
   if(which==="ask"){
     setMode("chat");
-    add("bot","Jasně — napište dotaz. 🙂");
+    add("bot","Jasně — napište dotaz.");
     input.focus();
     return;
   }
 }
 
-/* MENU (✅ simplified to 2 tiles, no extra scrolling) */
+/* MENU (professional + compact) */
 function renderMenu(){
   const hasUrl = !!(state.urlSaved && state.url);
 
   const html = `
     <div>
-      <b>Ukázku připravím pro váš web.</b><br>
-      <span style="color:rgba(255,255,255,.68)">Vyberte jednu možnost:</span>
+      <b>Rychlá ukázka chatbota pro váš web</b><br>
+      <span style="color:rgba(255,255,255,.68)">Zadejte web a uvidíte, jak by chatbot odpovídal zákazníkům.</span>
     </div>
 
-    <div class="grid" style="margin-top:10px">
+    <div class="grid">
       <div class="tile" data-action="demo">
         <div class="k">
           <div class="ico">▶</div>
           <div>
             <b>Získat ukázku</b>
-            <span>Zadáte web a hned uvidíte náhled</span>
+            <span>Zadání webu (1 minuta)</span>
           </div>
         </div>
       </div>
@@ -580,7 +614,7 @@ function renderMenu(){
         <div class="k">
           <div class="ico">⚙</div>
           <div>
-            <b>Co umí chatbot?</b>
+            <b>Co to umí</b>
             <span>Stručný přehled</span>
           </div>
         </div>
@@ -604,22 +638,23 @@ function renderMenu(){
 
 function renderCapabilities(){
   const html = `
-    <div><b>Co umí chatbot (stručně):</b></div>
+    <div><b>Co chatbot zvládne (v praxi):</b></div>
     <ul class="list">
-      <li><span class="check">✓</span><span>FAQ: cena, služby, termíny, postup</span></li>
+      <li><span class="check">✓</span><span>FAQ: cena, termíny, postup, služby</span></li>
       <li><span class="check">✓</span><span>Sběr poptávek a kvalifikace zájemců</span></li>
-      <li><span class="check">✓</span><span>Navigace na správný kontakt / stránku</span></li>
+      <li><span class="check">✓</span><span>Nasměrování na správnou stránku a kontakt</span></li>
     </ul>
     <div class="hint" style="margin-top:6px">Pro ukázku podle vašeho webu klikněte na „Získat ukázku“.</div>
   `;
   add("bot", html, true);
+  maybeShowLeadCta("after_capabilities");
 }
 
 function handleMenuAction(action){
   if(action==="demo"){
     setMode("url");
-    add("bot","Zadejte prosím web (stačí doména). Ukázku připravím hned.");
-    addHint("Pozn.: Některé weby automatické načítání blokují — v tom případě ukážeme demo podle 3 vašich dotazů.");
+    add("bot","Prosím zadejte adresu vašeho webu (stačí doména). Ukázku připravím obratem.");
+    addHint("Poznámka: Některé weby automatické načítání blokují — v tom případě ukážeme demo podle 3 vašich dotazů.");
     input.focus();
     return;
   }
@@ -632,7 +667,103 @@ function isAskingForDemo(text){
   return t.includes("ukazk") || t.includes("ukázk") || t.includes("nahled") || t.includes("náhled");
 }
 
-/* SEND */
+/* ===== Lead capture (no manual mode switch) ===== */
+
+function getLead(){ return JSON.parse(localStorage.getItem(LEAD_KEY) || "null"); }
+function setLead(lead){ localStorage.setItem(LEAD_KEY, JSON.stringify(lead)); }
+
+function looksLikeEmail(s){ return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(s); }
+function extractEmail(s){
+  const m = String(s||"").match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return m ? m[0] : "";
+}
+function extractPhone(s){
+  // vezmeme čísla, odstraníme mezery, vezmeme posledních 9–13 číslic
+  const digits = String(s||"").replace(/\D+/g,"");
+  if(digits.length >= 9 && digits.length <= 13) return digits;
+  if(digits.length > 13) return digits.slice(-9);
+  return "";
+}
+function extractName(s){
+  // velmi jednoduchá heuristika: první 2 slova bez @ a bez číslic
+  const cleaned = String(s||"").replace(/https?:\/\/\S+/g," ").replace(/\S+@\S+/g," ").replace(/[0-9]/g," ");
+  const parts = cleaned.split(/\s+/).map(x=>x.trim()).filter(Boolean);
+  if(parts.length >= 2) return (parts[0] + " " + parts[1]).slice(0, 60);
+  return "";
+}
+
+async function sendLeadToSheets(lead){
+  const name = lead.name || "";
+  const phone = lead.phone || "";
+  const email = lead.email || "";
+  const note = lead.note || "";
+
+  const company = (state.companyName || "").trim() || titleizeFromDomain(prettyDomain(state.url||"")) || "";
+  const url = state.url || "";
+
+  const payload = {
+    name, phone, email,
+    message: `Zájem o plnou verzi | Firma: ${company} | Web: ${url} | Poznámka: ${note}`
+  };
+
+  const r = await fetch("/.netlify/functions/lead",{
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body: JSON.stringify(payload)
+  });
+  const txt = await r.text();
+  return { ok: r.ok, raw: txt };
+}
+
+function maybeShowLeadCta(reason){
+  const already = localStorage.getItem(CTA_KEY) === "1";
+  const lead = getLead();
+  if(already) return;
+  if(lead && (lead.sent === true)) return;
+
+  // trigger: po 2 demo odpovědích nebo po explicitní akci
+  if(state.demoTurns >= 2 || reason === "timer" || reason === "after_demo_preview" || reason === "after_capabilities"){
+    localStorage.setItem(CTA_KEY, "1");
+    renderLeadCtaCard();
+  }
+}
+
+function renderLeadCtaCard(){
+  const name = (state.companyName || "").trim() || titleizeFromDomain(prettyDomain(state.url||"")) || "vaši firmu";
+
+  const html = `
+    <div class="leadCard">
+      <b>Chcete vědět, jak by chatbot pomohl i ${escapeHtml(name)}?</b>
+      <span>Pošlete prosím v jedné zprávě <b>jméno, telefon, e-mail</b> a krátce co potřebujete. Ozve se vám kolega a navrhne řešení na míru.</span>
+      <div class="leadBtns">
+        <span class="leadBtn" data-lead="how">Co získáte v plné verzi</span>
+        <span class="leadBtn gray" data-lead="example">Ukázat příklad zprávy</span>
+      </div>
+    </div>
+  `;
+  add("bot", html, true);
+
+  const last = chat.lastElementChild;
+  last.querySelectorAll("[data-lead]").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      const a = el.dataset.lead;
+      if(a === "how"){
+        add("bot",
+          "Plná verze typicky obsahuje: odpovědi z vašeho obsahu (web/FAQ/dokumenty), sběr poptávek, kvalifikaci zájemců, směrování na služby a měření přínosu. Vše v jednotném stylu vaší firmy."
+        );
+      }
+      if(a === "example"){
+        add("bot",
+`Příklad jedné zprávy:
+Jan Novák, 777 123 456, jan@firma.cz – chci chatbota na web, FAQ + sběr poptávek a předávání kolegovi.`
+        );
+      }
+      input.focus();
+    });
+  });
+}
+
+/* ===== send ===== */
 async function send(){
   const t = input.value.trim();
   if(!t) return;
@@ -652,7 +783,7 @@ async function send(){
   try{
     setStatus("pracuji…");
 
-    // local "show demo" intent
+    // local intent: show demo
     if(isAskingForDemo(t) && state.urlSaved && state.url){
       setMode("chat");
       renderDemoPreview();
@@ -660,7 +791,54 @@ async function send(){
       return;
     }
 
-    // SEED mode: user provides company + 3 questions (fallback)
+    // Lead capture: pokud zpráva obsahuje email nebo telefon, zkusíme to vyzobat
+    const email = extractEmail(t);
+    const phone = extractPhone(t);
+    const name = extractName(t);
+    const lead = getLead() || { name:"", phone:"", email:"", note:"", sent:false };
+
+    // pokud je to evidentně kontaktní zpráva nebo už jsme CTA ukázali, snažíme se uložit lead
+    const ctaWasShown = localStorage.getItem(CTA_KEY) === "1";
+    if(ctaWasShown && (email || phone)){
+      lead.email = lead.email || email;
+      lead.phone = lead.phone || phone;
+      lead.name  = lead.name  || name;
+      // poznámka: necháme původní text jako note, pokud ještě není
+      if(!lead.note) lead.note = t.slice(0, 240);
+      setLead(lead);
+
+      // validace: chceme min. phone + email
+      if(!lead.phone || !lead.email){
+        const missing = [];
+        if(!lead.name) missing.push("jméno a příjmení");
+        if(!lead.phone) missing.push("telefon");
+        if(!lead.email) missing.push("e-mail");
+        add("bot", `Děkuji. Ještě prosím doplňte: ${missing.join(", ")} (klidně v jedné zprávě).`);
+        setStatus("čekám na kontakt");
+        return;
+      }
+
+      // odeslat do Sheets
+      const resp = await sendLeadToSheets(lead);
+      if(!resp.ok){
+        if(DEBUG) add("bot","Chyba lead:\n"+resp.raw);
+        add("bot","Děkuji — kontakt jsem přijal, ale uložení se nepodařilo. Zkuste to prosím ještě jednou nebo napište znovu e-mail a telefon.");
+        setStatus("chyba");
+        return;
+      }
+
+      lead.sent = true;
+      setLead(lead);
+
+      add("bot",
+`Děkuji, mám vše potřebné. ✅
+Kolega se vám co nejdříve ozve a společně doladíte řešení tak, aby to pro váš web dávalo maximální smysl.`
+      );
+      setStatus("připraveno");
+      return;
+    }
+
+    // SEED mode
     if(state.mode==="seed"){
       const parsed = parseSeedInput(t);
 
@@ -672,13 +850,13 @@ async function send(){
         saveState();
         ensureContextBanner();
         setMode("chat");
-        add("bot","Perfektní — mám jméno firmy i 3 dotazy. Připravuji ukázku… ✅");
+        add("bot","Perfektní — děkuji. Připravuji ukázku… ✅");
         renderDemoPreview();
         setStatus("připraveno");
         return;
       }else{
         add("bot",
-`Ještě mi prosím pošlete přesně 3 dotazy (nejlépe jako odrážky).
+`Ještě prosím pošlete přesně 3 dotazy (ideálně jako odrážky).
 Příklad:
 Firma: JH Dental
 - Kolik stojí dentální hygiena?
@@ -689,7 +867,7 @@ Firma: JH Dental
       }
     }
 
-    // URL mode → save + try scrape + show demo
+    // URL mode
     if(state.mode==="url"){
       if(!looksValidUrl(t)){
         add("bot","Tohle nevypadá jako web. Zkuste prosím třeba „muj-web.cz“.");
@@ -702,6 +880,7 @@ Firma: JH Dental
       if(!state.companyName) state.companyName = titleizeFromDomain(prettyDomain(url));
       saveState();
 
+      // save to Sheets
       const r = await saveUrlToSheets(url);
       if(!r.ok){
         if(DEBUG) add("bot","Chyba ukládání do Sheets:\n"+r.raw);
@@ -712,8 +891,10 @@ Firma: JH Dental
       state.urlSaved = true;
       saveState();
 
+      ensureContextBanner();
       add("bot","Děkuji — mám to. ✅ Připravuji ukázku…");
 
+      // scrape
       try{
         setStatus("načítám…");
         const txt = await scrapeHomepage(url);
@@ -727,7 +908,7 @@ Firma: JH Dental
         setContext("");
         saveState();
         setMode("seed");
-        add("bot","Tenhle web bohužel nedovolil automatické načtení (některé weby to blokují).");
+        add("bot","Tento web nedovolil automatické načtení obsahu (některé weby to blokují).");
         add("bot","Nevadí — napište jméno firmy a 3 typické dotazy zákazníků a ukážu demo odpovědí.");
         setStatus("čekám na jméno + 3 dotazy");
         if(DEBUG) add("bot","DEBUG scrape error: "+String(e));
@@ -736,8 +917,9 @@ Firma: JH Dental
       }
     }
 
-    // chat/menu → DEMO AI reply
+    // DEMO chat reply
     setMode("chat");
+    setBadge("DEMO");
 
     if(!getContext() && !state.seedQuestions?.length){
       add("bot","Tip: Pro přesnější ukázku zadejte web (Získat ukázku) nebo doplňte 3 typické dotazy.");
@@ -745,6 +927,12 @@ Firma: JH Dental
 
     const ans = await askDemoAI(t);
     add("bot", ans);
+
+    // count turns & maybe show CTA
+    state.demoTurns = (state.demoTurns || 0) + 1;
+    saveState();
+    maybeShowLeadCta("after_demo_turn");
+
     setStatus("připraveno");
 
   }catch(e){
@@ -765,6 +953,7 @@ input.addEventListener("keydown", e => (e.key==="Enter") && send());
 function init(){
   setStatus("připraveno");
   refreshTopBar();
+  setBadge("DEMO");
 
   setMode("menu");
 
@@ -774,13 +963,18 @@ function init(){
     saveState();
     ensureContextBanner();
 
-    add("bot", `Vítejte zpět 👋`);
+    add("bot", "Vítejte zpět 👋");
     addTiny(`Uložený web: ${dom}`);
   } else {
     add("bot","Dobrý den 👋");
   }
 
   renderMenu();
+
+  // CTA timer (variant: po 60s vyjede nabídka)
+  setTimeout(()=>{
+    maybeShowLeadCta("timer");
+  }, 60000);
 }
 init();
 </script>

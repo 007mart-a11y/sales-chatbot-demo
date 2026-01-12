@@ -460,7 +460,7 @@
  *  - true: zobrazí se nudge + bubble (na běžných webech)
  *  - false: když Lovable má svůj launcher a ty nechceš duplikaci
  *  ========================== */
-const DISPLAY_LAUNCHER = true;
+const DISPLAY_LAUNCHER = false;
 
 const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
@@ -878,14 +878,26 @@ async function send(){
 cbSend.addEventListener("click", send);
 cbInput.addEventListener("keydown", (e)=>{ if(e.key === "Enter") send(); });
 
-/* Init */
-function init(){
-  openPanel(); // openPanel si udělá renderWelcome + focus
-}();
+/* =========================================================
+   INIT – finální čistá verze (bez duplicitního openPanel/render)
+   - Welcome se vykreslí jen jednou (při prvním otevření)
+   - Panel se otevírá klikem (bubble / nudge)
+   - Pokud DISPLAY_LAUNCHER=false → schováme náš launcher a nic nevážeme
+   ========================================================= */
 
-  // otevřít chat hned – Lovable jen zobrazí panel
-  openPanel();
-})();
-</script>
-</body>
-</html>
+function openPanel(){
+  cbPanel.classList.add("open");
+
+  // ✅ Uvítání vykreslit jen jednou (a ne pokaždé při open)
+  if(!cbChat.dataset.inited){
+    cbChat.dataset.inited = "1";
+    renderWelcome();
+  }
+
+  setTimeout(() => cbInput.focus(), 50);
+}
+
+function closePanel(){
+  cbPanel.classList.remove("open");
+}
+

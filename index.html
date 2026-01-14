@@ -402,6 +402,8 @@
       .cb-sideTab:before{display:none}
       .cb-panel{height:min(680px, calc(100vh - 36px))}
     }
+    /* helper: hide launcher when chat is open */
+.cb-hidden{ display:none !important; }
   </style>
 </head>
 
@@ -542,6 +544,14 @@ const cbInput   = document.getElementById("cbInput");
 const cbSend    = document.getElementById("cbSend");
 const cbClose   = document.getElementById("cbClose");
 const cbSideTab = document.getElementById("cbSideTab");
+  // --- Anti-duplicate guard: pokud se widget načte víckrát, nech jen první sideTab ---
+(function dedupeSideTabs(){
+  const tabs = document.querySelectorAll("#cbSideTab");
+  if(tabs.length <= 1) return;
+  for(let i = 1; i < tabs.length; i++){
+    tabs[i].remove();
+  }
+})();
 
 /** lead modal DOM */
 const cbModalWrap = document.getElementById("cbModalWrap");
@@ -558,6 +568,8 @@ const cbLeadSubmit = document.getElementById("cbLeadSubmit");
 
 /** UI helpers */
 function openPanel(){
+  if(cbSideTab) cbSideTab.classList.add("cb-hidden");
+  
   cbPanel.classList.add("open");
   cbOverlay.classList.add("open");
 
@@ -572,6 +584,8 @@ function openPanel(){
 function closePanel(){
   cbPanel.classList.remove("open");
   cbOverlay.classList.remove("open");
+  
+  if(cbSideTab) cbSideTab.classList.remove("cb-hidden");
 }
 
 /** Bind open/close */

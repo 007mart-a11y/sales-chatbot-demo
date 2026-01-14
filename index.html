@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Chatbot widget demo</title>
 
+  <!-- Embed flag: když je ?embed=1, přidá třídu .embed -->
+  <script>
+    (function(){
+      const isEmbed = new URLSearchParams(location.search).has("embed");
+      if (isEmbed) document.documentElement.classList.add("embed");
+    })();
+  </script>
+
   <style>
     :root{
       /* === Lovable vibe: dark + cyan === */
@@ -36,7 +44,7 @@
     }
 
     /* =========================
-       SIDE TAB (launcher) – varianta B
+       SIDE TAB (launcher)
        ========================= */
     .cb-sideTab{
       position:fixed;
@@ -402,457 +410,552 @@
       .cb-sideTab:before{display:none}
       .cb-panel{height:min(680px, calc(100vh - 36px))}
     }
+
     /* helper: hide launcher when chat is open */
-.cb-hidden{ display:none !important; }
+    .cb-hidden{ display:none !important; }
+
+    /* EMBED MODE: v iframe nechceme launcher */
+    html.embed .cb-sideTab{ display:none !important; }
   </style>
 </head>
 
 <body>
 
-/** Debug */
-const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+  <!-- SIDE TAB (launcher) -->
+  <div class="cb-sideTab" id="cbSideTab" aria-label="Otevřít demo chatbota">
+    <div class="cb-sideIcon" aria-hidden="true">
+      <!-- robot-ish icon (inline SVG) -->
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M9 3h6" stroke="#00131f" stroke-width="2" stroke-linecap="round"/>
+        <path d="M12 3v3" stroke="#00131f" stroke-width="2" stroke-linecap="round"/>
+        <rect x="5" y="7" width="14" height="12" rx="4" stroke="#00131f" stroke-width="2"/>
+        <path d="M9 12h.01M15 12h.01" stroke="#00131f" stroke-width="3" stroke-linecap="round"/>
+        <path d="M8.5 16c1 .8 2.3 1.2 3.5 1.2s2.5-.4 3.5-1.2" stroke="#00131f" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="cb-sideText">
+      <b>Vyzkoušejte demo chatbota</b>
+      <span>pro vaši firmu • klikněte zde</span>
+    </div>
+    <div class="cb-sideArrow" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path d="M9 18l6-6-6-6" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
 
-/** endpoints (Netlify functions) */
-const ENDPOINT_DEMO = "/.netlify/functions/search-demo";
-const ENDPOINT_SCRAPE = "/.netlify/functions/scrape";
-const ENDPOINT_LEAD = "/.netlify/functions/lead";
+  <!-- overlay -->
+  <div class="cb-overlay" id="cbOverlay" aria-hidden="true"></div>
 
-/** storage keys */
-const THREAD_KEY = "demo_widget_thread_id_v2";
-const CONTEXT_KEY = "demo_widget_context_v2";
-const STATE_KEY = "demo_widget_state_v2";
-const CTA_KEY = "demo_widget_cta_shown_v2";
+  <!-- Widget panel -->
+  <div class="cb-panel" id="cbPanel" role="dialog" aria-label="Chatbot widget">
+    <div class="cb-body">
+      <div class="cb-top">
+        <button class="cb-close" id="cbClose" aria-label="Zavřít">✕</button>
+      </div>
 
-/** state */
-const defaultState = () => ({
-  companyName: "",
-  siteUrl: "",
-  demoTurns: 0,
-  demoPreviewShown: false
-});
-let state = loadState();
+      <div class="cb-chat" id="cbChat"></div>
 
-function loadState(){
-  try{
-    const s = JSON.parse(localStorage.getItem(STATE_KEY) || "null");
-    if(!s || typeof s !== "object") return defaultState();
-    return { ...defaultState(), ...s };
-  }catch{
-    return defaultState();
-  }
-}
-function saveState(){ localStorage.setItem(STATE_KEY, JSON.stringify(state)); }
-
-const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
-const setThreadId = (id) => id && localStorage.setItem(THREAD_KEY, id);
-const resetThreadId = () => localStorage.removeItem(THREAD_KEY);
-
-const getContext = () => localStorage.getItem(CONTEXT_KEY) || "";
-const setContext = (t) => localStorage.setItem(CONTEXT_KEY, t || "");
-
-/** DOM */
-const cbPanel   = document.getElementById("cbPanel");
-const cbOverlay = document.getElementById("cbOverlay");
-const cbChat    = document.getElementById("cbChat");
-const cbInput   = document.getElementById("cbInput");
-const cbSend    = document.getElementById("cbSend");
-const cbClose   = document.getElementById("cbClose");
-const cbSideTab = document.getElementById("cbSideTab");
-  // --- Anti-duplicate guard: pokud se widget načte víckrát, nech jen první sideTab ---
-(function dedupeSideTabs(){
-  const tabs = document.querySelectorAll("#cbSideTab");
-  if(tabs.length <= 1) return;
-  for(let i = 1; i < tabs.length; i++){
-    tabs[i].remove();
-  }
-})();
-
-/** lead modal DOM */
-const cbModalWrap = document.getElementById("cbModalWrap");
-const cbModalClose = document.getElementById("cbModalClose");
-const cbLeadCancel = document.getElementById("cbLeadCancel");
-const cbLeadForm = document.getElementById("cbLeadForm");
-const leadName = document.getElementById("leadName");
-const leadPhone = document.getElementById("leadPhone");
-const leadEmail = document.getElementById("leadEmail");
-const leadNote = document.getElementById("leadNote");
-const leadErr = document.getElementById("leadErr");
-const leadOk = document.getElementById("leadOk");
-const cbLeadSubmit = document.getElementById("cbLeadSubmit");
-
-/** UI helpers */
-function openPanel(){
-  if(cbSideTab) cbSideTab.classList.add("cb-hidden");
-  
-  cbPanel.classList.add("open");
-  cbOverlay.classList.add("open");
-
-  // Uvítání vykreslit jen jednou
-  if(!cbChat.dataset.inited){
-    cbChat.dataset.inited = "1";
-    renderWelcome();
-  }
-
-  setTimeout(() => cbInput.focus(), 50);
-}
-function closePanel(){
-  cbPanel.classList.remove("open");
-  cbOverlay.classList.remove("open");
-  
-  if(cbSideTab) cbSideTab.classList.remove("cb-hidden");
-}
-
-/** Bind open/close */
-cbSideTab.addEventListener("click", openPanel);
-cbClose.addEventListener("click", closePanel);
-cbOverlay.addEventListener("click", closePanel);
-document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closePanel(); });
-
-function openLeadModal(){
-  leadErr.style.display = "none";
-  leadOk.style.display = "none";
-  cbModalWrap.classList.add("open");
-  leadName.focus();
-}
-function closeLeadModal(){ cbModalWrap.classList.remove("open"); }
-cbModalClose.addEventListener("click", closeLeadModal);
-cbLeadCancel.addEventListener("click", closeLeadModal);
-cbModalWrap.addEventListener("click", (e)=>{ if(e.target===cbModalWrap) closeLeadModal(); });
-
-function scrollBottom(){
-  requestAnimationFrame(()=>{ cbChat.scrollTop = cbChat.scrollHeight; });
-  setTimeout(()=>{ cbChat.scrollTop = cbChat.scrollHeight; }, 40);
-}
-function addMsg(role, textOrHtml, asHtml=false){
-  const d = document.createElement("div");
-  d.className = "cb-msg " + (role === "user" ? "user" : "bot");
-  if(asHtml) d.innerHTML = textOrHtml;
-  else d.textContent = textOrHtml;
-  cbChat.appendChild(d);
-  scrollBottom();
-}
-function addHint(text){
-  const d = document.createElement("div");
-  d.className = "cb-hint";
-  d.textContent = text;
-  cbChat.appendChild(d);
-  scrollBottom();
-}
-function escapeHtml(str){
-  return String(str||"")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#39;");
-}
-function prettyDomain(url){
-  return String(url||"").replace(/^https?:\/\//i,"").replace(/\/+$/,"");
-}
-function titleizeFromDomain(domain){
-  const d = String(domain||"").replace(/^www\./i,"");
-  const base = d.split(".")[0] || "";
-  if(!base) return "";
-  return base
-    .split(/[-_]+/g)
-    .filter(Boolean)
-    .map(w => (w.length<=2 ? w.toUpperCase() : (w[0].toUpperCase()+w.slice(1))))
-    .join(" ");
-}
-function looksValidUrl(u){
-  const s = String(u||"").trim();
-  return !!(s && s.length>=6 && !/\s/.test(s) && s.includes("."));
-}
-function normalizeUrl(u){
-  let s = String(u||"").trim().replace(/\s+/g,"");
-  if(!s) return "";
-  if(!/^https?:\/\//i.test(s)) s = "https://" + s;
-  try{
-    const url = new URL(s);
-    return url.origin;
-  }catch{
-    return s;
-  }
-}
-
-/** Demo preview (compact) */
-function renderCompactPreview(){
-  const domain = prettyDomain(state.siteUrl || "");
-  const company = (state.companyName || "").trim() || titleizeFromDomain(domain) || "vaši firmu";
-
-  const html = `
-    <div class="cb-card">
-      <b>Ukázka pro firmu: ${escapeHtml(company)}</b>
-      <span>${domain ? ("Web: " + escapeHtml(domain) + " • ") : ""}Zeptejte se jako zákazník (cena, termín, postup, služby).</span>
-
-      <ul class="cb-list">
-        <li class="cb-li"><span class="cb-check">✓</span><span>Odpoví na časté dotazy a zkrátí čas na telefonu</span></li>
-        <li class="cb-li"><span class="cb-check">✓</span><span>Navede zákazníka na správnou službu / kontakt</span></li>
-        <li class="cb-li"><span class="cb-check">✓</span><span>Sběr poptávek 24/7 (plná verze)</span></li>
-      </ul>
-
-      <div class="cb-miniRow">
-        <span class="cb-chip" data-action="examples">Ukázat 3 příklady odpovědí</span>
-        <span class="cb-chip gray" data-action="lead">Chci plnou verzi</span>
+      <div class="cb-row">
+        <input class="cb-input" id="cbInput" placeholder="Napište dotaz…" autocomplete="off" />
+        <button class="cb-send" id="cbSend">Odeslat</button>
       </div>
     </div>
-  `;
-  addMsg("bot", html, true);
+  </div>
 
-  const last = cbChat.lastElementChild;
-  last.querySelectorAll("[data-action]").forEach(el=>{
-    el.addEventListener("click", ()=>{
-      const a = el.dataset.action;
-      if(a === "examples"){
-        addMsg("bot",
+  <!-- Lead modal -->
+  <div class="cb-modalWrap" id="cbModalWrap" role="dialog" aria-label="Kontaktní formulář">
+    <div class="cb-modal">
+      <div class="cb-modalTop">
+        <div>
+          <b>Chcete plnou verzi chatbota?</b>
+          <span>Vyplňte prosím kontakt. Ozveme se vám a navrhneme řešení na míru.</span>
+        </div>
+        <button class="cb-modalClose" id="cbModalClose" aria-label="Zavřít">✕</button>
+      </div>
+
+      <form class="cb-form" id="cbLeadForm">
+        <div class="cb-field">
+          <div class="cb-label">Jméno a příjmení</div>
+          <input class="cb-inp" id="leadName" placeholder="Např. Jan Novák" />
+        </div>
+
+        <div class="cb-field">
+          <div class="cb-label">Telefon</div>
+          <input class="cb-inp" id="leadPhone" placeholder="Např. 777 123 456" />
+        </div>
+
+        <div class="cb-field">
+          <div class="cb-label">E-mail</div>
+          <input class="cb-inp" id="leadEmail" placeholder="Např. jan@firma.cz" />
+        </div>
+
+        <div class="cb-field">
+          <div class="cb-label">Požadavek (nepovinné)</div>
+          <textarea class="cb-inp cb-textarea" id="leadNote" placeholder="Např. chatbot na web, FAQ + sběr poptávek…"></textarea>
+        </div>
+
+        <div class="cb-err" id="leadErr">Prosím zkontrolujte vyplněné údaje.</div>
+        <div class="cb-ok" id="leadOk">Děkujeme, máme vše. Ozveme se co nejdříve.</div>
+
+        <div class="cb-formRow">
+          <button type="button" class="cb-btn gray" id="cbLeadCancel">Zrušit</button>
+          <button type="submit" class="cb-btn" id="cbLeadSubmit">Odeslat</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JS musí být až POD HTML, aby existoval DOM -->
+  <script>
+    /** Debug */
+    const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+
+    /** endpoints (Netlify functions) */
+    const ENDPOINT_DEMO = "/.netlify/functions/search-demo";
+    const ENDPOINT_SCRAPE = "/.netlify/functions/scrape";
+    const ENDPOINT_LEAD = "/.netlify/functions/lead";
+
+    /** storage keys */
+    const THREAD_KEY = "demo_widget_thread_id_v2";
+    const CONTEXT_KEY = "demo_widget_context_v2";
+    const STATE_KEY = "demo_widget_state_v2";
+    const CTA_KEY = "demo_widget_cta_shown_v2";
+
+    /** state */
+    const defaultState = () => ({
+      companyName: "",
+      siteUrl: "",
+      demoTurns: 0,
+      demoPreviewShown: false
+    });
+    let state = loadState();
+
+    function loadState(){
+      try{
+        const s = JSON.parse(localStorage.getItem(STATE_KEY) || "null");
+        if(!s || typeof s !== "object") return defaultState();
+        return { ...defaultState(), ...s };
+      }catch{
+        return defaultState();
+      }
+    }
+    function saveState(){ localStorage.setItem(STATE_KEY, JSON.stringify(state)); }
+
+    const getThreadId = () => localStorage.getItem(THREAD_KEY) || "";
+    const setThreadId = (id) => id && localStorage.setItem(THREAD_KEY, id);
+    const resetThreadId = () => localStorage.removeItem(THREAD_KEY);
+
+    const getContext = () => localStorage.getItem(CONTEXT_KEY) || "";
+    const setContext = (t) => localStorage.setItem(CONTEXT_KEY, t || "");
+
+    /** DOM */
+    const cbPanel   = document.getElementById("cbPanel");
+    const cbOverlay = document.getElementById("cbOverlay");
+    const cbChat    = document.getElementById("cbChat");
+    const cbInput   = document.getElementById("cbInput");
+    const cbSend    = document.getElementById("cbSend");
+    const cbClose   = document.getElementById("cbClose");
+    const cbSideTab = document.getElementById("cbSideTab");
+
+    // --- Anti-duplicate guard: pokud se widget načte víckrát, nech jen první sideTab ---
+    (function dedupeSideTabs(){
+      const tabs = document.querySelectorAll("#cbSideTab");
+      if(tabs.length <= 1) return;
+      for(let i = 1; i < tabs.length; i++){
+        tabs[i].remove();
+      }
+    })();
+
+    /** lead modal DOM */
+    const cbModalWrap = document.getElementById("cbModalWrap");
+    const cbModalClose = document.getElementById("cbModalClose");
+    const cbLeadCancel = document.getElementById("cbLeadCancel");
+    const cbLeadForm = document.getElementById("cbLeadForm");
+    const leadName = document.getElementById("leadName");
+    const leadPhone = document.getElementById("leadPhone");
+    const leadEmail = document.getElementById("leadEmail");
+    const leadNote = document.getElementById("leadNote");
+    const leadErr = document.getElementById("leadErr");
+    const leadOk = document.getElementById("leadOk");
+    const cbLeadSubmit = document.getElementById("cbLeadSubmit");
+
+    /** UI helpers */
+    function openPanel(){
+      if(cbSideTab) cbSideTab.classList.add("cb-hidden");
+
+      cbPanel.classList.add("open");
+      cbOverlay.classList.add("open");
+
+      // Uvítání vykreslit jen jednou
+      if(!cbChat.dataset.inited){
+        cbChat.dataset.inited = "1";
+        renderWelcome();
+      }
+
+      setTimeout(() => cbInput.focus(), 50);
+    }
+    function closePanel(){
+      cbPanel.classList.remove("open");
+      cbOverlay.classList.remove("open");
+
+      if(cbSideTab) cbSideTab.classList.remove("cb-hidden");
+    }
+
+    /** Bind open/close */
+    if(cbSideTab) cbSideTab.addEventListener("click", openPanel);
+    cbClose.addEventListener("click", closePanel);
+    cbOverlay.addEventListener("click", closePanel);
+    document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closePanel(); });
+
+    function openLeadModal(){
+      leadErr.style.display = "none";
+      leadOk.style.display = "none";
+      cbModalWrap.classList.add("open");
+      leadName.focus();
+    }
+    function closeLeadModal(){ cbModalWrap.classList.remove("open"); }
+    cbModalClose.addEventListener("click", closeLeadModal);
+    cbLeadCancel.addEventListener("click", closeLeadModal);
+    cbModalWrap.addEventListener("click", (e)=>{ if(e.target===cbModalWrap) closeLeadModal(); });
+
+    function scrollBottom(){
+      requestAnimationFrame(()=>{ cbChat.scrollTop = cbChat.scrollHeight; });
+      setTimeout(()=>{ cbChat.scrollTop = cbChat.scrollHeight; }, 40);
+    }
+    function addMsg(role, textOrHtml, asHtml=false){
+      const d = document.createElement("div");
+      d.className = "cb-msg " + (role === "user" ? "user" : "bot");
+      if(asHtml) d.innerHTML = textOrHtml;
+      else d.textContent = textOrHtml;
+      cbChat.appendChild(d);
+      scrollBottom();
+    }
+    function addHint(text){
+      const d = document.createElement("div");
+      d.className = "cb-hint";
+      d.textContent = text;
+      cbChat.appendChild(d);
+      scrollBottom();
+    }
+    function escapeHtml(str){
+      return String(str||"")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#39;");
+    }
+    function prettyDomain(url){
+      return String(url||"").replace(/^https?:\/\//i,"").replace(/\/+$/,"");
+    }
+    function titleizeFromDomain(domain){
+      const d = String(domain||"").replace(/^www\./i,"");
+      const base = d.split(".")[0] || "";
+      if(!base) return "";
+      return base
+        .split(/[-_]+/g)
+        .filter(Boolean)
+        .map(w => (w.length<=2 ? w.toUpperCase() : (w[0].toUpperCase()+w.slice(1))))
+        .join(" ");
+    }
+    function looksValidUrl(u){
+      const s = String(u||"").trim();
+      return !!(s && s.length>=6 && !/\\s/.test(s) && s.includes("."));
+    }
+    function normalizeUrl(u){
+      let s = String(u||"").trim().replace(/\\s+/g,"");
+      if(!s) return "";
+      if(!/^https?:\\/\\//i.test(s)) s = "https://" + s;
+      try{
+        const url = new URL(s);
+        return url.origin;
+      }catch{
+        return s;
+      }
+    }
+
+    /** Demo preview (compact) */
+    function renderCompactPreview(){
+      const domain = prettyDomain(state.siteUrl || "");
+      const company = (state.companyName || "").trim() || titleizeFromDomain(domain) || "vaši firmu";
+
+      const html = \`
+        <div class="cb-card">
+          <b>Ukázka pro firmu: \${escapeHtml(company)}</b>
+          <span>\${domain ? ("Web: " + escapeHtml(domain)
+
+           + " • ") : ""}Zeptejte se jako zákazník (cena, termín, postup, služby).</span>
+
+          <ul class="cb-list">
+            <li class="cb-li"><span class="cb-check">✓</span><span>Odpoví na časté dotazy a zkrátí čas na telefonu</span></li>
+            <li class="cb-li"><span class="cb-check">✓</span><span>Navede zákazníka na správnou službu / kontakt</span></li>
+            <li class="cb-li"><span class="cb-check">✓</span><span>Sběr poptávek 24/7 (plná verze)</span></li>
+          </ul>
+
+          <div class="cb-miniRow">
+            <span class="cb-chip" data-action="examples">Ukázat 3 příklady odpovědí</span>
+            <span class="cb-chip gray" data-action="lead">Chci plnou verzi</span>
+          </div>
+        </div>
+      `;
+      addMsg("bot", html, true);
+
+      const last = cbChat.lastElementChild;
+      last.querySelectorAll("[data-action]").forEach(el=>{
+        el.addEventListener("click", ()=>{
+          const a = el.dataset.action;
+          if(a === "examples"){
+            addMsg("bot",
 `Příklady dotazů:
 1) „Kolik to stojí?“
 2) „Jaký je postup a jak dlouho to trvá?“
 3) „Kdy můžete přijet / jak rychle to umíte?“`
-        );
-      }
-      if(a === "lead"){
-        openLeadModal();
-      }
-    });
-  });
-
-  state.demoPreviewShown = true;
-  saveState();
-}
-
-function maybeShowCta(){
-  if(localStorage.getItem(CTA_KEY) === "1") return;
-  if(state.demoTurns >= 2){
-    localStorage.setItem(CTA_KEY, "1");
-
-    const html = `
-      <div class="cb-card" style="border-color:rgba(38,215,255,.18);background:linear-gradient(90deg, rgba(38,215,255,.10), rgba(0,168,255,.06));">
-        <b>Chcete plnou verzi chatbota pro váš web?</b>
-        <span>Vyplňte kontakt a my vám pošleme konkrétní návrh použití pro váš typ zákazníků.</span>
-        <div class="cb-miniRow">
-          <span class="cb-chip" data-action="lead">Otevřít formulář</span>
-          <span class="cb-chip gray" data-action="later">Později</span>
-        </div>
-      </div>
-    `;
-    addMsg("bot", html, true);
-
-    const last = cbChat.lastElementChild;
-    last.querySelectorAll("[data-action]").forEach(el=>{
-      el.addEventListener("click", ()=>{
-        const a = el.dataset.action;
-        if(a==="lead") openLeadModal();
+            );
+          }
+          if(a === "lead"){
+            openLeadModal();
+          }
+        });
       });
-    });
-  }
-}
 
-/** Backends */
-async function scrapeHomepage(url){
-  const r = await fetch(ENDPOINT_SCRAPE,{
-    method:"POST",
-    headers:{ "content-type":"application/json" },
-    body: JSON.stringify({ url })
-  });
-  const d = await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(d.error || "Scrape failed");
-  const text = String(d.text || d.content || d.body || "");
-  if(!text) throw new Error("Scrape returned empty text");
-  return text;
-}
-
-async function askDemoAI(message){
-  const r = await fetch(ENDPOINT_DEMO,{
-    method:"POST",
-    headers:{ "content-type":"application/json" },
-    body: JSON.stringify({
-      message,
-      thread_id: getThreadId(),
-      context: getContext(),
-      site_url: state.siteUrl || ""
-    })
-  });
-  const d = await r.json().catch(()=>({}));
-  if(d.thread_id) setThreadId(d.thread_id);
-  if(!d.ok) throw new Error(d.error || "search-demo failed");
-  return d.answer || "";
-}
-
-async function sendLead(payload){
-  const r = await fetch(ENDPOINT_LEAD,{
-    method:"POST",
-    headers:{ "content-type":"application/json" },
-    body: JSON.stringify(payload)
-  });
-  const txt = await r.text();
-  return { ok: r.ok, raw: txt };
-}
-
-/** Lead submit */
-function isValidEmail(s){
-  return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(String(s||""));
-}
-function onlyDigits(s){ return String(s||"").replace(/\D+/g,""); }
-
-cbLeadForm.addEventListener("submit", async (e)=>{
-  e.preventDefault();
-  leadErr.style.display = "none";
-  leadOk.style.display = "none";
-
-  const name = leadName.value.trim();
-  const phone = onlyDigits(leadPhone.value.trim());
-  const email = leadEmail.value.trim();
-  const note = leadNote.value.trim();
-
-  const missing = [];
-  if(!name) missing.push("jméno");
-  if(!phone || phone.length < 9) missing.push("telefon");
-  if(!email || !isValidEmail(email)) missing.push("e-mail");
-
-  if(missing.length){
-    leadErr.textContent = "Prosím doplňte: " + missing.join(", ") + ".";
-    leadErr.style.display = "block";
-    return;
-  }
-
-  cbLeadSubmit.disabled = true;
-  cbLeadSubmit.textContent = "Odesílám…";
-
-  try{
-    const company = (state.companyName || "").trim() || titleizeFromDomain(prettyDomain(state.siteUrl||"")) || "";
-    const url = state.siteUrl || "";
-
-    const payload = {
-      name,
-      phone,
-      email,
-      message: `Zájem o plnou verzi | Firma: ${company} | Web: ${url} | Požadavek: ${note || "—"}`
-    };
-
-    const resp = await sendLead(payload);
-    if(!resp.ok){
-      if(DEBUG) console.log(resp.raw);
-      leadErr.textContent = "Omlouváme se, nepodařilo se to odeslat. Zkuste to prosím znovu.";
-      leadErr.style.display = "block";
-      return;
+      state.demoPreviewShown = true;
+      saveState();
     }
 
-    leadOk.style.display = "block";
-    setTimeout(()=>{
-      closeLeadModal();
-      addMsg("bot", "Děkujeme. ✅ Ozveme se co nejdříve a navrhneme řešení na míru.");
-    }, 650);
+    function maybeShowCta(){
+      if(localStorage.getItem(CTA_KEY) === "1") return;
+      if(state.demoTurns >= 2){
+        localStorage.setItem(CTA_KEY, "1");
 
-  } finally {
-    cbLeadSubmit.disabled = false;
-    cbLeadSubmit.textContent = "Odeslat";
-  }
-});
+        const html = `
+          <div class="cb-card" style="border-color:rgba(38,215,255,.18);background:linear-gradient(90deg, rgba(38,215,255,.10), rgba(0,168,255,.06));">
+            <b>Chcete plnou verzi chatbota pro váš web?</b>
+            <span>Vyplňte kontakt a my vám pošleme konkrétní návrh použití pro váš typ zákazníků.</span>
+            <div class="cb-miniRow">
+              <span class="cb-chip" data-action="lead">Otevřít formulář</span>
+              <span class="cb-chip gray" data-action="later">Později</span>
+            </div>
+          </div>
+        `;
+        addMsg("bot", html, true);
 
-/** Flow */
-function renderWelcome(){
-  addMsg("bot","Dobrý den 👋");
-  addHint("Toto je rychlá ukázka. Zadejte web (doménu) a vyzkoušejte odpovědi jako zákazník.");
-
-  const html = `
-    <div class="cb-card">
-      <b>Chcete ukázku pro váš web?</b>
-      <span>Napište doménu (např. <b>dachmantechnik.cz</b>) a připravím demo odpovědí.</span>
-      <div class="cb-miniRow">
-        <span class="cb-chip" data-action="how">Co demo umí</span>
-        <span class="cb-chip gray" data-action="lead">Chci plnou verzi</span>
-      </div>
-    </div>
-  `;
-  addMsg("bot", html, true);
-
-  const last = cbChat.lastElementChild;
-  last.querySelectorAll("[data-action]").forEach(el=>{
-    el.addEventListener("click", ()=>{
-      const a = el.dataset.action;
-      if(a==="how"){
-        addMsg("bot","Demo ukazuje styl odpovědí a práci s obsahem webu. V plné verzi navíc sbírá poptávky (formulář), kvalifikuje zájemce a umí posílat data do e-mailu/CRM/Sheets.");
+        const last = cbChat.lastElementChild;
+        last.querySelectorAll("[data-action]").forEach(el=>{
+          el.addEventListener("click", ()=>{
+            const a = el.dataset.action;
+            if(a==="lead") openLeadModal();
+          });
+        });
       }
-      if(a==="lead"){
-        openLeadModal();
+    }
+
+    /** Backends */
+    async function scrapeHomepage(url){
+      const r = await fetch(ENDPOINT_SCRAPE,{
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ url })
+      });
+      const d = await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(d.error || "Scrape failed");
+      const text = String(d.text || d.content || d.body || "");
+      if(!text) throw new Error("Scrape returned empty text");
+      return text;
+    }
+
+    async function askDemoAI(message){
+      const r = await fetch(ENDPOINT_DEMO,{
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({
+          message,
+          thread_id: getThreadId(),
+          context: getContext(),
+          site_url: state.siteUrl || ""
+        })
+      });
+      const d = await r.json().catch(()=>({}));
+      if(d.thread_id) setThreadId(d.thread_id);
+      if(!d.ok) throw new Error(d.error || "search-demo failed");
+      return d.answer || "";
+    }
+
+    async function sendLead(payload){
+      const r = await fetch(ENDPOINT_LEAD,{
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify(payload)
+      });
+      const txt = await r.text();
+      return { ok: r.ok, raw: txt };
+    }
+
+    /** Lead submit */
+    function isValidEmail(s){
+      return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(String(s||""));
+    }
+    function onlyDigits(s){ return String(s||"").replace(/\D+/g,""); }
+
+    cbLeadForm.addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      leadErr.style.display = "none";
+      leadOk.style.display = "none";
+
+      const name = leadName.value.trim();
+      const phone = onlyDigits(leadPhone.value.trim());
+      const email = leadEmail.value.trim();
+      const note = leadNote.value.trim();
+
+      const missing = [];
+      if(!name) missing.push("jméno");
+      if(!phone || phone.length < 9) missing.push("telefon");
+      if(!email || !isValidEmail(email)) missing.push("e-mail");
+
+      if(missing.length){
+        leadErr.textContent = "Prosím doplňte: " + missing.join(", ") + ".";
+        leadErr.style.display = "block";
+        return;
+      }
+
+      cbLeadSubmit.disabled = true;
+      cbLeadSubmit.textContent = "Odesílám…";
+
+      try{
+        const company = (state.companyName || "").trim() || titleizeFromDomain(prettyDomain(state.siteUrl||"")) || "";
+        const url = state.siteUrl || "";
+
+        const payload = {
+          name,
+          phone,
+          email,
+          message: `Zájem o plnou verzi | Firma: ${company} | Web: ${url} | Požadavek: ${note || "—"}`
+        };
+
+        const resp = await sendLead(payload);
+        if(!resp.ok){
+          if(DEBUG) console.log(resp.raw);
+          leadErr.textContent = "Omlouváme se, nepodařilo se to odeslat. Zkuste to prosím znovu.";
+          leadErr.style.display = "block";
+          return;
+        }
+
+        leadOk.style.display = "block";
+        setTimeout(()=>{
+          closeLeadModal();
+          addMsg("bot", "Děkujeme. ✅ Ozveme se co nejdříve a navrhneme řešení na míru.");
+        }, 650);
+
+      } finally {
+        cbLeadSubmit.disabled = false;
+        cbLeadSubmit.textContent = "Odeslat";
       }
     });
-  });
-}
 
-async function handleUserMessage(text){
-  if(text.toLowerCase() === "reset"){
-    resetThreadId();
-    localStorage.removeItem(CONTEXT_KEY);
-    localStorage.removeItem(STATE_KEY);
-    localStorage.removeItem(CTA_KEY);
-    state = defaultState();
-    cbChat.innerHTML = "";
-    cbChat.dataset.inited = "";
-    renderWelcome();
-    return;
-  }
+    /** Flow */
+    function renderWelcome(){
+      addMsg("bot","Dobrý den 👋");
+      addHint("Toto je rychlá ukázka. Zadejte web (doménu) a vyzkoušejte odpovědi jako zákazník.");
 
-  // first time url/domain -> scrape
-  if(!state.siteUrl && looksValidUrl(text)){
-    const url = normalizeUrl(text);
-    state.siteUrl = url;
-    if(!state.companyName) state.companyName = titleizeFromDomain(prettyDomain(url));
-    saveState();
+      const html = `
+        <div class="cb-card">
+          <b>Chcete ukázku pro váš web?</b>
+          <span>Napište doménu (např. <b>dachmantechnik.cz</b>) a připravím demo odpovědí.</span>
+          <div class="cb-miniRow">
+            <span class="cb-chip" data-action="how">Co demo umí</span>
+            <span class="cb-chip gray" data-action="lead">Chci plnou verzi</span>
+          </div>
+        </div>
+      `;
+      addMsg("bot", html, true);
 
-    addMsg("bot","Děkuji — připravuji ukázku…");
-
-    try{
-      const ctx = await scrapeHomepage(url);
-      setContext(ctx);
-      addMsg("bot","Hotovo ✅ Ukázka je připravená. Zeptejte se jako zákazník.");
-      if(!state.demoPreviewShown) renderCompactPreview();
-    }catch(e){
-      setContext("");
-      if(DEBUG) console.log(e);
-      addMsg("bot","Tento web nedovolil automatické načtení obsahu. Nevadí — i tak se můžete ptát, demo odpoví obecně.");
-      if(!state.demoPreviewShown) renderCompactPreview();
+      const last = cbChat.lastElementChild;
+      last.querySelectorAll("[data-action]").forEach(el=>{
+        el.addEventListener("click", ()=>{
+          const a = el.dataset.action;
+          if(a==="how"){
+            addMsg("bot","Demo ukazuje styl odpovědí a práci s obsahem webu. V plné verzi navíc sbírá poptávky (formulář), kvalifikuje zájemce a umí posílat data do e-mailu/CRM/Sheets.");
+          }
+          if(a==="lead"){
+            openLeadModal();
+          }
+        });
+      });
     }
-    return;
-  }
 
-  const ans = await askDemoAI(text);
-  addMsg("bot", ans);
+    async function handleUserMessage(text){
+      if(text.toLowerCase() === "reset"){
+        resetThreadId();
+        localStorage.removeItem(CONTEXT_KEY);
+        localStorage.removeItem(STATE_KEY);
+        localStorage.removeItem(CTA_KEY);
+        state = defaultState();
+        cbChat.innerHTML = "";
+        cbChat.dataset.inited = "";
+        renderWelcome();
+        return;
+      }
 
-  state.demoTurns = (state.demoTurns || 0) + 1;
-  saveState();
-  maybeShowCta();
-}
+      // first time url/domain -> scrape
+      if(!state.siteUrl && looksValidUrl(text)){
+        const url = normalizeUrl(text);
+        state.siteUrl = url;
+        if(!state.companyName) state.companyName = titleizeFromDomain(prettyDomain(url));
+        saveState();
 
-/** Send */
-let sending = false;
-async function send(){
-  const t = cbInput.value.trim();
-  if(!t || sending) return;
-  cbInput.value = "";
-  addMsg("user", t);
-  cbSend.disabled = true;
-  sending = true;
+        addMsg("bot","Děkuji — připravuji ukázku…");
 
-  try{
-    await handleUserMessage(t);
-  }catch(err){
-    if(DEBUG) console.log(err);
-    addMsg("bot","Omlouváme se, něco se nepovedlo. Zkuste to prosím znovu.");
-  }finally{
-    cbSend.disabled = false;
-    sending = false;
-    cbInput.focus();
-  }
-}
-cbSend.addEventListener("click", send);
-cbInput.addEventListener("keydown", (e)=>{ if(e.key === "Enter") send(); });
+        try{
+          const ctx = await scrapeHomepage(url);
+          setContext(ctx);
+          addMsg("bot","Hotovo ✅ Ukázka je připravená. Zeptejte se jako zákazník.");
+          if(!state.demoPreviewShown) renderCompactPreview();
+        }catch(e){
+          setContext("");
+          if(DEBUG) console.log(e);
+          addMsg("bot","Tento web nedovolil automatické načtení obsahu. Nevadí — i tak se můžete ptát, demo odpoví obecně.");
+          if(!state.demoPreviewShown) renderCompactPreview();
+        }
+        return;
+      }
 
-/** Init (nic neotvírá samo) */
-(function init(){
-  // nic – welcome se vykreslí až při prvním openPanel()
-})();
-</script>
+      const ans = await askDemoAI(text);
+      addMsg("bot", ans);
+
+      state.demoTurns = (state.demoTurns || 0) + 1;
+      saveState();
+      maybeShowCta();
+    }
+
+    /** Send */
+    let sending = false;
+    async function send(){
+      const t = cbInput.value.trim();
+      if(!t || sending) return;
+      cbInput.value = "";
+      addMsg("user", t);
+      cbSend.disabled = true;
+      sending = true;
+
+      try{
+        await handleUserMessage(t);
+      }catch(err){
+        if(DEBUG) console.log(err);
+        addMsg("bot","Omlouváme se, něco se nepovedlo. Zkuste to prosím znovu.");
+      }finally{
+        cbSend.disabled = false;
+        sending = false;
+        cbInput.focus();
+      }
+    }
+    cbSend.addEventListener("click", send);
+    cbInput.addEventListener("keydown", (e)=>{ if(e.key === "Enter") send(); });
+
+    /** Init (nic neotvírá samo) */
+    (function init(){
+      // nic – welcome se vykreslí až při prvním openPanel()
+    })();
+  </script>
+
 </body>
 </html>

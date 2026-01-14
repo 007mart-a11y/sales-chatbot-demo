@@ -683,9 +683,7 @@
       const html = \`
         <div class="cb-card">
           <b>Ukázka pro firmu: \${escapeHtml(company)}</b>
-          <span>\${domain ? ("Web: " + escapeHtml(domain)
-
-           + " • ") : ""}Zeptejte se jako zákazník (cena, termín, postup, služby).</span>
+          <span>${domain ? ("Web: " + escapeHtml(domain) + " • ") : ""}Zeptejte se jako zákazník (cena, termín, postup, služby).</span>
 
           <ul class="cb-list">
             <li class="cb-li"><span class="cb-check">✓</span><span>Odpoví na časté dotazy a zkrátí čas na telefonu</span></li>

@@ -72,6 +72,17 @@
       border: 1px solid rgba(255,255,255,.10);
     }
 
+    /* ✅ Mobil: panel full-screen i mimo embed */
+    @media (max-width: 640px){
+      body:not(.embed-mode) .panel{
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+      }
+    }
+
     .panel::before{
       content:"";
       position:absolute;
@@ -165,7 +176,7 @@
       transform: translateY(-1px);
     }
 
-    /* ===== HERO TILES ===== */
+    /* ===== HERO ===== */
     .hero{
       position:relative;
       padding: 12px 14px 10px;
@@ -174,13 +185,21 @@
       background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0));
     }
 
+    /* desktop-only wrapper */
+    .desktopHero{ display:block; }
+    /* mobile-only wrapper */
+    .mobileHero{ display:none; }
+
+    /* ✅ Mobil: schovej tiles a ukaž jen 2 tlačítka */
+    @media (max-width: 640px){
+      .desktopHero{ display:none !important; }
+      .mobileHero{ display:block !important; }
+    }
+
     .tiles{
       display:grid;
       grid-template-columns: 1fr 1fr 1fr;
       gap: 10px;
-    }
-    @media (max-width: 520px){
-      .tiles{ grid-template-columns: 1fr; }
     }
 
     .tile{
@@ -286,6 +305,38 @@
       white-space:nowrap;
     }
 
+    /* ✅ Mobilní hero (2 tlačítka) */
+    .mTitle{
+      font-weight: 950;
+      letter-spacing:.2px;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .mBtn{
+      width:100%;
+      min-height: 54px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.92);
+      font-weight: 950;
+      cursor:pointer;
+      margin: 10px 0;
+      padding: 12px 12px;
+      text-align: left;
+    }
+    .mBtn.primary{
+      border: 1px solid rgba(0,255,255,.22);
+      background: linear-gradient(180deg, rgba(0,230,255,.22), rgba(0,140,255,.14));
+      box-shadow: 0 14px 38px rgba(0,0,0,.20);
+    }
+    .mSmall{
+      font-size: 12px;
+      color: rgba(255,255,255,.62);
+      line-height: 1.25;
+      margin-top: 6px;
+    }
+
     /* ===== MESSAGES ===== */
     .messages{
       flex: 1 1 auto;
@@ -345,7 +396,6 @@
       margin: 10px 0;
     }
 
-    /* ✅ CHIPS (chybělo — používal jsi je v intro i nudge) */
     .chips{
       display:flex;
       flex-wrap: wrap;
@@ -395,7 +445,7 @@
 
     /* ===== INPUT ===== */
     .composer{
-      padding: 10px 12px 12px;
+      padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
       border-top: 1px solid rgba(255,255,255,.10);
       background: linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.30));
       display:flex;
@@ -426,6 +476,11 @@
       min-height: 22px;
     }
     textarea::placeholder{ color: rgba(255,255,255,.45); }
+
+    /* ✅ iPhone zoom fix */
+    @media (max-width: 640px){
+      textarea{ font-size: 16px; }
+    }
 
     .sendBtn{
       appearance:none;
@@ -550,8 +605,7 @@
 
 <body>
   <div id="appRoot"></div>
-
-  <script>
+    <script>
     /******************************************************************
      * KONFIG
      ******************************************************************/
@@ -559,7 +613,6 @@
     const ENDPOINT_SEARCH = APP_ORIGIN + "/.netlify/functions/search";
     const ENDPOINT_LEAD  = APP_ORIGIN + "/.netlify/functions/lead";
 
-    // Sem dej URL na logo (např. "/logo.png" z Netlify public), nebo nech prázdné.
     const LOGO_URL = "";
 
     const LS_THREAD = "sales_chatbot_thread_id_v2";
@@ -670,8 +723,11 @@
     header.appendChild(brand);
     header.appendChild(closeBtn);
 
-    // Hero tiles
+    // Hero
     const hero = el("div", { class:"hero" });
+
+    // --- Desktop hero (původní tiles) ---
+    const desktopHero = el("div", { class:"desktopHero" });
     const tiles = el("div", { class:"tiles" });
 
     const tile1 = el("div", { class:"tile", role:"button", tabindex:"0" });
@@ -701,8 +757,26 @@
       el("div", { class:"microPill" }, ["⚡ Rychlá poptávka"])
     ]);
 
-    hero.appendChild(tiles);
-    hero.appendChild(microRow);
+    desktopHero.appendChild(tiles);
+    desktopHero.appendChild(microRow);
+
+    // --- Mobile hero (2 velká tlačítka) ---
+    const mobileHero = el("div", { class:"mobileHero" });
+    mobileHero.appendChild(el("div", { class:"mTitle" }, ["Jak vám mohu pomoct?"]));
+
+    const mDeploy = el("button", { class:"mBtn primary", type:"button", id:"mDeploy" }, ["✨ Chci to nasadit"]);
+    const mAsk = el("button", { class:"mBtn", type:"button", id:"mAsk" }, ["💬 Jen se zeptat"]);
+
+    const mSmall = el("div", { class:"mSmall" }, [
+      "Základní chatbot bývá hotový zhruba do týdne. Pokročilé řešení (CRM, sběr kontaktů) 2–5 týdnů."
+    ]);
+
+    mobileHero.appendChild(mDeploy);
+    mobileHero.appendChild(mAsk);
+    mobileHero.appendChild(mSmall);
+
+    hero.appendChild(desktopHero);
+    hero.appendChild(mobileHero);
 
     // Composer
     const composer = el("div", { class:"composer" });
@@ -718,7 +792,7 @@
     const modalOverlay = el("div", { class:"modalOverlay", id:"modalOverlay" });
     const modal = el("div", { class:"modal" });
     const modalHead = el("div", { class:"modalHead" });
-    const modalTitle = el("div", { class:"modalTitle" }, ["Rychlá poptávka (ukázka až po kontaktu)"]);
+    const modalTitle = el("div", { class:"modalTitle" }, ["Rychlá poptávka (ukázka po kontaktu)"]);
     const modalClose = el("button", { class:"modalClose", onclick: ()=>hideModal(), "aria-label":"Zavřít" }, ["×"]);
     modalHead.appendChild(modalTitle);
     modalHead.appendChild(modalClose);
@@ -907,10 +981,20 @@
     });
     tile2.addEventListener("click", ()=>{
       showModal();
-      addMessage("bot", `<span class="pill">INFO</span>Super — vyplňte prosím kontakt a stručný popis. Ukázky řešíme až po kontaktu.`);
+      addMessage("bot", `<span class="pill">INFO</span>Super — vyplňte prosím kontakt a stručný popis.`);
     });
     tile3.addEventListener("click", ()=>{
       addMessage("bot", `<span class="pill">OK</span>Napište, co vás zajímá (cena, postup, použití pro obec / podnikání).`);
+      try{ ta.focus({ preventScroll:true }); }catch(e){ ta.focus(); }
+    });
+
+    // ✅ Mobile buttons
+    mDeploy.addEventListener("click", ()=>{
+      showModal();
+      addMessage("bot", `<span class="pill">INFO</span>Super — vyplňte prosím kontakt a stručný popis.`);
+    });
+    mAsk.addEventListener("click", ()=>{
+      addMessage("bot", `<span class="pill">OK</span>Napište dotaz (cena / nasazení / použití).`);
       try{ ta.focus({ preventScroll:true }); }catch(e){ ta.focus(); }
     });
 
@@ -932,7 +1016,7 @@
     });
     sendBtn.addEventListener("click", ()=> sendUserText(ta.value));
 
-      /******************************************************************
+    /******************************************************************
      * FORM SUBMIT (LEAD → Sheets)
      ******************************************************************/
     form.addEventListener("submit", async (e)=>{

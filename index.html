@@ -800,3 +800,165 @@
       if(data.thread_id) setThreadId(data.thread_id);
       return { ok:true, answer: data.answer || "OK" };
     }
+        /******************************************************************
+     *  SEND FLOW
+     ******************************************************************/
+    async function sendUserText(text){
+      const t = (text || "").trim();
+      if(!t) return;
+
+      // doména -> DEMO příprava
+      const maybeDomain = normalizeDomain(t);
+      if(maybeDomain && !t.includes(" ")){
+        addMessage("user", escapeHtml(t));
+        ta.value = "";
+        autosize(ta);
+
+        addTyping();
+        await wait(450);
+        removeTyping();
+
+        demoReady(maybeDomain);
+        return;
+      }
+
+      // normal message
+      addMessage("user", escapeHtml(t));
+      ta.value = "";
+      autosize(ta);
+
+      // count (uživatelský dotaz) – počítáme jen v DEMO
+      const modeNow = getMode();
+      if(modeNow === "demo"){
+        const cnt = getUserCount() + 1;
+        setUserCount(cnt);
+      }
+
+      // DEMO context → aby AI vždy věděla, pro jaký web to je + že je jen homepage
+      const st = getDemoState();
+      const demoContext = st?.domain ? `
+[DEMO MODE]
+Web: ${st.domain}
+Firma: ${st.company}
+Načtený obsah: pouze homepage webu
+Pokyny:
+- Odpovídej jako chatbot tohoto webu.
+- Pokud informace není na homepage, řekni, že v DEMO ukázce nemusí být dostupná (protože je načtena jen homepage).
+- Doporuč, kde by ji návštěvník našel (např. Kontakt, O nás, Služby, Ceník).
+- Neptej se opakovaně na obor podnikání (žádný dotazník).
+- Polož maximálně 1 doplňující otázku, jen pokud to opravdu pomůže.
+` : `
+[DEMO MODE]
+Načtený obsah: pouze homepage (zatím nebyla zadána doména).
+Pokyny:
+- Vyzvi uživatele, ať zadá doménu webu (např. dachmantechnik.cz), aby šlo připravit demo.
+`;
+
+      // ✅ MODE header přidaný do zprávy
+      const modeHeader = (modeNow === "sales") ? "[MODE: SALES]\n" : "[MODE: DEMO]\n";
+      const payloadText =
+        modeHeader +
+        t +
+        (modeNow === "demo" ? ("\n\n" + demoContext) : "");
+
+      addTyping();
+      sendBtn.disabled = true;
+
+      try{
+        const out = await callAssistant(payloadText);
+        removeTyping();
+        addMessage("bot", out.answer);
+      }catch(e){
+        removeTyping();
+        addMessage("bot", `Omlouvám se, došlo k chybě. Zkuste to prosím znovu.`);
+      }finally{
+        sendBtn.disabled = false;
+        scrollToBottom();
+
+        // ✅ nudge jen v DEMO
+        if(getMode() === "demo") maybeNudge();
+      }
+    }
+
+    function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+    /******************************************************************
+     *  FORM SUBMIT (LEAD)
+     ******************************************************************/
+    form.addEventListener("submit", async (e)=>{
+      e.preventDefault();
+
+      // ✅ při odesílání leadu držíme SALES mód
+      setMode("sales");
+
+      const submitBtn = document.getElementById("leadSubmit");
+      submitBtn.disabled = true;
+
+      const fd = new FormData(form);
+      const name = (fd.get("name") || "").toString().trim();
+      const email = (fd.get("email") || "").toString().trim();
+      const phone = (fd.get("phone") || "").toString().trim();
+      const web = (fd.get("web") || "").toString().trim();
+      const message = (fd.get("message") || "").toString().trim();
+
+      if(!email){
+        submitBtn.disabled = false;
+        addMessage("bot", `<span class="pill">INFO</span>Ještě potřebuji doplnit váš e-mail, prosím.`);
+        return;
+      }
+
+      try{
+        const payload = { name, phone, email, message, web };
+        const res = await fetch(ENDPOINT_LEAD, {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        try{ await res.json(); } catch(_) {}
+
+        hideModal();
+        addMessage("bot", `<span class="pill">OK</span>Děkuji, mám vše: ${escapeHtml(name || "—")}, ${escapeHtml(phone || "—")}, ${escapeHtml(email)}.`);
+
+      }catch(err){
+        addMessage("bot", `<span class="pill">CHYBA</span>Nepodařilo se odeslat formulář. Zkuste to prosím znovu.`);
+      }finally{
+        submitBtn.disabled = false;
+      }
+    });
+
+    /******************************************************************
+     *  INPUT UX
+     ******************************************************************/
+    function autosize(textarea){
+      textarea.style.height = "auto";
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
+    }
+    ta.addEventListener("input", ()=>autosize(ta));
+
+    ta.addEventListener("keydown", (e)=>{
+      if(e.key === "Enter" && !e.shiftKey){
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
+
+    sendBtn.addEventListener("click", ()=>{
+      sendUserText(ta.value);
+    });
+
+    /******************************************************************
+     *  INIT
+     ******************************************************************/
+    // ✅ default mód je DEMO (pokud ještě není nastaven)
+    if(!localStorage.getItem(LS_MODE)) setMode("demo");
+
+    intro();
+
+    setTimeout(()=>{
+      try{ ta.focus({ preventScroll:true }); }catch(e){ ta.focus(); }
+    }, 200);
+
+  </script>
+</body>
+</html>

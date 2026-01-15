@@ -1,3 +1,6 @@
+<!-- =========================
+DÍL 1 / 2
+========================= -->
 <!doctype html>
 <html lang="cs">
 <head>
@@ -16,7 +19,6 @@
 
       --brand: rgba(0, 230, 255, .95);
       --brand2: rgba(0, 160, 255, .95);
-      --brandSoft: rgba(0, 220, 255, .12);
 
       --shadow: 0 18px 60px rgba(0,0,0,.55);
       --radius: 18px;
@@ -65,7 +67,6 @@
       position: relative;
     }
 
-    /* Full fill in Lovable slot */
     body.embed-mode .panel{
       width:100%;
       height:100%;
@@ -74,7 +75,6 @@
       border: 1px solid rgba(255,255,255,.10);
     }
 
-    /* Subtle “future grid” overlay */
     .panel::before{
       content:"";
       position:absolute;
@@ -198,6 +198,7 @@
       cursor:pointer;
       transition: transform .12s ease, border-color .12s ease, background .12s ease, filter .12s ease;
       overflow:hidden;
+      user-select:none;
     }
     .tile:hover{
       transform: translateY(-1px);
@@ -243,7 +244,6 @@
       flex: 0 0 auto;
     }
 
-    /* Primary CTA tile – “future pulse” */
     .tile.primary{
       border-color: rgba(0,255,255,.26);
       background:
@@ -303,7 +303,7 @@
 
     .msgRow{
       display:flex;
-      margin: 6px 0;         /* těsnější */
+      margin: 6px 0;
       gap: 10px;
       align-items:flex-end;
     }
@@ -348,7 +348,7 @@
       margin: 10px 0;
     }
 
-    /* Chips inside chat (gentle, optional) */
+    /* ✅ CHIPS (chybělo — používal jsi je v intro i nudge) */
     .chips{
       display:flex;
       flex-wrap: wrap;
@@ -482,10 +482,7 @@
       justify-content:space-between;
       border-bottom: 1px solid rgba(255,255,255,.10);
     }
-    .modalTitle{
-      font-weight: 950;
-      letter-spacing:.2px;
-    }
+    .modalTitle{ font-weight: 950; letter-spacing:.2px; }
     .modalClose{
       appearance:none;
       border: 1px solid rgba(255,255,255,.14);
@@ -524,6 +521,7 @@
       font-size: 14px;
     }
     .field textarea{ min-height: 88px; resize: vertical; }
+
     .modalActions{
       display:flex;
       gap: 10px;
@@ -564,8 +562,7 @@
     const ENDPOINT_SEARCH = APP_ORIGIN + "/.netlify/functions/search";
     const ENDPOINT_LEAD  = APP_ORIGIN + "/.netlify/functions/lead";
 
-    // Volitelně: sem dej URL na logo (např. z Netlify /public/logo.png)
-    // Nech prázdné => použije se futuristická SVG ikona.
+    // Sem dej URL na logo (např. "/logo.png" z Netlify public), nebo nech prázdné.
     const LOGO_URL = "";
 
     const LS_THREAD = "sales_chatbot_thread_id_v2";
@@ -609,7 +606,6 @@
 
     function markNudgeDone(){ localStorage.setItem(LS_NUDGE_DONE, "1"); }
     function isNudgeDone(){ return localStorage.getItem(LS_NUDGE_DONE) === "1"; }
-    function resetNudge(){ localStorage.removeItem(LS_NUDGE_DONE); }
 
     /******************************************************************
      * UI BUILD
@@ -648,6 +644,19 @@
     brand.appendChild(logoWrap);
     brand.appendChild(brandText);
 
+    const messages = el("div", { class:"messages", id:"messages" });
+
+    function scrollToBottom(){ messages.scrollTop = messages.scrollHeight; }
+
+    function addMessage(role, html){
+      const row = el("div", { class: "msgRow " + (role === "user" ? "user" : "bot") });
+      const bubble = el("div", { class: "bubble", html });
+      row.appendChild(bubble);
+      messages.appendChild(row);
+      scrollToBottom();
+      return row;
+    }
+
     const closeBtn = el("button", {
       class:"closeBtn",
       "aria-label":"Zavřít",
@@ -670,35 +679,20 @@
 
     const tile1 = el("div", { class:"tile", role:"button", tabindex:"0" });
     tile1.innerHTML = `
-      <div class="tileKicker">
-        <span class="tileIcon">🤖</span>
-        Co asistent umí
-      </div>
-      <div class="tileDesc">
-        FAQ, poptávky, navigace, úspora času. Pro obce i podnikání.
-      </div>
+      <div class="tileKicker"><span class="tileIcon">🤖</span>Co asistent umí</div>
+      <div class="tileDesc">FAQ, poptávky, navigace, úspora času. Pro obce i podnikání.</div>
     `;
 
     const tile2 = el("div", { class:"tile primary", role:"button", tabindex:"0" });
     tile2.innerHTML = `
-      <div class="tileKicker">
-        <span class="tileIcon">✨</span>
-        Chci to nasadit
-      </div>
-      <div class="tileDesc">
-        Vyplňte kontakt + popis a připravíme návrh řešení na míru.
-      </div>
+      <div class="tileKicker"><span class="tileIcon">✨</span>Chci to nasadit</div>
+      <div class="tileDesc">Vyplňte kontakt + popis a připravíme návrh řešení na míru.</div>
     `;
 
     const tile3 = el("div", { class:"tile", role:"button", tabindex:"0" });
     tile3.innerHTML = `
-      <div class="tileKicker">
-        <span class="tileIcon">💬</span>
-        Zeptejte se
-      </div>
-      <div class="tileDesc">
-        Napište dotaz do chatu (cena, použití, postup nasazení).
-      </div>
+      <div class="tileKicker"><span class="tileIcon">💬</span>Zeptejte se</div>
+      <div class="tileDesc">Napište dotaz do chatu (cena, použití, postup nasazení).</div>
     `;
 
     tiles.appendChild(tile1);
@@ -712,9 +706,6 @@
 
     hero.appendChild(tiles);
     hero.appendChild(microRow);
-
-    // Messages
-    const messages = el("div", { class:"messages", id:"messages" });
 
     // Composer
     const composer = el("div", { class:"composer" });
@@ -812,22 +803,7 @@
         try{ form.querySelector('select[name="orgType"]').focus(); }catch(e){}
       }, 80);
     }
-    function hideModal(){
-      modalOverlay.classList.remove("show");
-    }
-
-    function scrollToBottom(){
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    function addMessage(role, html){
-      const row = el("div", { class: "msgRow " + (role === "user" ? "user" : "bot") });
-      const bubble = el("div", { class: "bubble", html });
-      row.appendChild(bubble);
-      messages.appendChild(row);
-      scrollToBottom();
-      return row;
-    }
+    function hideModal(){ modalOverlay.classList.remove("show"); }
 
     function addTyping(){
       const row = el("div", { class: "msgRow bot" });
@@ -869,9 +845,6 @@
       return { ok:true, answer: data.answer || "OK" };
     }
 
-    function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
-
-    // Gentle nudge after a few messages (no “ukázka v chatu” – only opens form)
     function maybeLeadNudge(){
       const count = getUserCount();
       if(isNudgeDone()) return;
@@ -911,7 +884,6 @@
       sendBtn.disabled = true;
 
       try{
-        // Sales mode – žádné demo kontexty
         const out = await callAssistant(t);
         removeTyping();
         addMessage("bot", out.answer);
@@ -945,7 +917,6 @@
       try{ ta.focus({ preventScroll:true }); }catch(e){ ta.focus(); }
     });
 
-    // Keyboard accessible tiles
     [tile1, tile2, tile3].forEach(tl=>{
       tl.addEventListener("keydown", (e)=>{
         if(e.key === "Enter" || e.key === " "){
@@ -964,11 +935,7 @@
     });
     sendBtn.addEventListener("click", ()=> sendUserText(ta.value));
 
-    <!-- =========================
-DÍL 2 / 2
-(pokračování…)
-========================= -->
-    /******************************************************************
+      /******************************************************************
      * FORM SUBMIT (LEAD → Sheets)
      ******************************************************************/
     form.addEventListener("submit", async (e)=>{
@@ -984,7 +951,6 @@ DÍL 2 / 2
       const email = (fd.get("email") || "").toString().trim();
       const message = (fd.get("message") || "").toString().trim();
 
-      // jednoduchá validace
       if(!message){
         submitBtn.disabled = false;
         addMessage("bot", `<span class="pill">INFO</span>Doplňte prosím stručně, co má asistent řešit.`);
@@ -1007,7 +973,6 @@ DÍL 2 / 2
       }
 
       try{
-        // Do Sheets posíláme i orgType a web (je to užitečné pro obce vs firmy)
         const payload = {
           orgType,
           web,
@@ -1023,7 +988,6 @@ DÍL 2 / 2
           body: JSON.stringify(payload)
         });
 
-        // endpoint může vracet JSON i text
         try{ await res.json(); } catch(_) {}
 
         hideModal();
@@ -1058,7 +1022,6 @@ DÍL 2 / 2
         </div>
       `);
 
-      // chips handler
       const last = messages.lastElementChild;
       last.querySelectorAll(".chip").forEach(btn=>{
         btn.addEventListener("click", ()=>{

@@ -411,9 +411,12 @@
     const ENDPOINT_LEAD  = APP_ORIGIN + "/.netlify/functions/lead";
 
     const LS_THREAD = "sales_chatbot_thread_id_v2";
-    const LS_DEMO_STATE = "sales_chatbot_demo_state_v4"; // bump verze
+    const LS_DEMO_STATE = "sales_chatbot_demo_state_v4";
     const LS_MSG_COUNT = "sales_chatbot_user_msg_count_v4";
     const LS_NUDGE_DONE = "sales_chatbot_nudge_done_v4";
+
+    // ✅ NEW: Mode state (demo/sales)
+    const LS_MODE = "sales_chatbot_mode_v1"; // "demo" | "sales"
 
     const params = new URLSearchParams(location.search);
     const IS_EMBED = params.get("embed") === "1";
@@ -507,15 +510,16 @@
 
     function setThreadId(id){ if(id) localStorage.setItem(LS_THREAD, id); }
     function getThreadId(){ return localStorage.getItem(LS_THREAD) || ""; }
-    function resetThread(){
-      localStorage.removeItem(LS_THREAD);
-    }
+    function resetThread(){ localStorage.removeItem(LS_THREAD); }
 
     function markNudgeDone(){ localStorage.setItem(LS_NUDGE_DONE, "1"); }
     function isNudgeDone(){ return localStorage.getItem(LS_NUDGE_DONE) === "1"; }
-    function resetNudge(){
-      localStorage.removeItem(LS_NUDGE_DONE);
-    }
+    function resetNudge(){ localStorage.removeItem(LS_NUDGE_DONE); }
+
+    // ✅ NEW: Mode helpers
+    function setMode(mode){ localStorage.setItem(LS_MODE, mode); }
+    function getMode(){ return localStorage.getItem(LS_MODE) || "demo"; }
+    function resetMode(){ localStorage.removeItem(LS_MODE); }
 
     /******************************************************************
      *  UI BUILD
@@ -670,52 +674,55 @@
     }
 
     function quickButtons(state){
-  addMessage("bot", `
-    <div class="kicker">Chcete si to hned vyzkoušet?</div>
-    <div class="small">
-      Klikněte na jednu z ukázkových otázek, nebo napište vlastní dotaz.
-      <br>
-      <span style="opacity:.8">DEMO pracuje pouze s obsahem homepage.</span>
-    </div>
+      addMessage("bot", `
+        <div class="kicker">Chcete si to hned vyzkoušet?</div>
+        <div class="small">
+          Klikněte na jednu z ukázkových otázek, nebo napište vlastní dotaz.
+          <br>
+          <span style="opacity:.8">DEMO pracuje pouze s obsahem homepage.</span>
+        </div>
 
-    <div class="chips">
-      <button class="chip"
-        data-q="Co víš o firmě ${escapeHtml(state.company)} (${escapeHtml(state.domain)})? Vím, že jde o DEMO a mám k dispozici jen homepage.">
-        Co víš o této firmě?
-      </button>
+        <div class="chips">
+          <button class="chip"
+            data-q="Co víš o firmě ${escapeHtml(state.company)} (${escapeHtml(state.domain)})? Vím, že jde o DEMO a mám k dispozici jen homepage.">
+            Co víš o této firmě?
+          </button>
 
-      <button class="chip"
-        data-q="Jak by si mohl zákazník objednat služby firmy ${escapeHtml(state.company)} na webu ${escapeHtml(state.domain)}? Odpovídej jen z informací, které bývají na homepage.">
-        Jak si mohu službu objednat?
-      </button>
+          <button class="chip"
+            data-q="Jak by si mohl zákazník objednat služby firmy ${escapeHtml(state.company)} na webu ${escapeHtml(state.domain)}? Odpovídej jen z informací, které bývají na homepage.">
+            Jak si mohu službu objednat?
+          </button>
 
-      <button class="chip"
-        data-q="Kolik to může orientačně stát a jak rychle lze řešení nasadit pro web ${escapeHtml(state.domain)}? Pokud přesná cena není na homepage, uveď to.">
-        Kolik to stojí a jak rychle to nasadíte?
-      </button>
-    </div>
-  `);
+          <button class="chip"
+            data-q="Kolik to může orientačně stát a jak rychle lze řešení nasadit pro web ${escapeHtml(state.domain)}? Pokud přesná cena není na homepage, uveď to.">
+            Kolik to stojí a jak rychle to nasadíte?
+          </button>
+        </div>
+      `);
 
-  const last = messages.lastElementChild;
-  const btns = last.querySelectorAll(".chip");
+      const last = messages.lastElementChild;
+      const btns = last.querySelectorAll(".chip");
+      btns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const q = btn.getAttribute("data-q") || btn.textContent.trim();
+          sendUserText(q);
+        });
+      });
+    }
 
-  btns.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const q = btn.getAttribute("data-q") || btn.textContent.trim();
-      sendUserText(q);
-    });
-  });
-}
     function demoReady(domain){
       const company = companyFromDomain(domain);
-     const state = { domain, company };
+      const state = { domain, company };
 
-// reset kontextu pro novou doménu
-resetThread();
-setUserCount(0);
-resetNudge();
+      // ✅ reset kontextu pro novou doménu
+      resetThread();
+      setUserCount(0);
+      resetNudge();
 
-setDemoState(state);
+      // ✅ vždy zpět do DEMO módu při zadání nové domény
+      setMode("demo");
+
+      setDemoState(state);
 
       addMessage("bot", `
         <span class="pill">DEMO</span>Hotovo ✅ Ukázka je připravena pro firmu <b>${escapeHtml(company)}</b> (<b>${escapeHtml(domain)}</b>).
@@ -729,7 +736,8 @@ setDemoState(state);
 
       quickButtons(state);
     }
-        /******************************************************************
+
+    /******************************************************************
      *  SALES NUDGE
      ******************************************************************/
     function maybeNudge(){
@@ -751,10 +759,17 @@ setDemoState(state);
       `);
 
       const last = messages.lastElementChild;
+
+      // ✅ YES => přepnout do SALES + reset threadu (nový kontext)
       last.querySelector('[data-nudge="yes"]').addEventListener("click", ()=>{
         const st = getDemoState();
+
+        setMode("sales");
+        resetThread();
+
         showModal({ web: st?.domain || "" });
       });
+
       last.querySelector('[data-nudge="no"]').addEventListener("click", ()=>{
         addMessage("bot", `<span class="pill">DEMO</span>Jasně — klidně pokračujte otázkou. 🙂`);
       });
@@ -785,147 +800,3 @@ setDemoState(state);
       if(data.thread_id) setThreadId(data.thread_id);
       return { ok:true, answer: data.answer || "OK" };
     }
-
-    /******************************************************************
-     *  SEND FLOW
-     ******************************************************************/
-    async function sendUserText(text){
-      const t = (text || "").trim();
-      if(!t) return;
-
-      // doména -> DEMO příprava
-      const maybeDomain = normalizeDomain(t);
-      if(maybeDomain && !t.includes(" ")){
-        addMessage("user", escapeHtml(t));
-        ta.value = "";
-        autosize(ta);
-
-        addTyping();
-        await wait(450);
-        removeTyping();
-
-        demoReady(maybeDomain);
-        return;
-      }
-
-      // normal message
-      addMessage("user", escapeHtml(t));
-      ta.value = "";
-      autosize(ta);
-
-      // count (uživatelský dotaz)
-      const cnt = getUserCount() + 1;
-      setUserCount(cnt);
-
-      // DEMO context → aby AI vždy věděla, pro jaký web to je + že je jen homepage
-      const st = getDemoState();
-      const demoContext = st?.domain ? `
-[DEMO MODE]
-Web: ${st.domain}
-Firma: ${st.company}
-Načtený obsah: pouze homepage webu
-Pokyny:
-- Odpovídej jako chatbot tohoto webu.
-- Pokud informace není na homepage, řekni, že v DEMO ukázce nemusí být dostupná (protože je načtena jen homepage).
-- Doporuč, kde by ji návštěvník našel (např. Kontakt, O nás, Služby, Ceník).
-- Neptej se opakovaně na obor podnikání (žádný dotazník).
-- Polož maximálně 1 doplňující otázku, jen pokud to opravdu pomůže.
-` : `
-[DEMO MODE]
-Načtený obsah: pouze homepage (zatím nebyla zadána doména).
-Pokyny:
-- Vyzvi uživatele, ať zadá doménu webu (např. dachmantechnik.cz), aby šlo připravit demo.
-`;
-
-      addTyping();
-      sendBtn.disabled = true;
-
-      try{
-        const out = await callAssistant(t + "\n\n" + demoContext);
-        removeTyping();
-        addMessage("bot", out.answer);
-      }catch(e){
-        removeTyping();
-        addMessage("bot", `Omlouvám se, došlo k chybě. Zkuste to prosím znovu.`);
-      }finally{
-        sendBtn.disabled = false;
-        scrollToBottom();
-        maybeNudge();
-      }
-    }
-
-    function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
-
-    /******************************************************************
-     *  FORM SUBMIT (LEAD)
-     ******************************************************************/
-    form.addEventListener("submit", async (e)=>{
-      e.preventDefault();
-      const submitBtn = document.getElementById("leadSubmit");
-      submitBtn.disabled = true;
-
-      const fd = new FormData(form);
-      const name = (fd.get("name") || "").toString().trim();
-      const email = (fd.get("email") || "").toString().trim();
-      const phone = (fd.get("phone") || "").toString().trim();
-      const web = (fd.get("web") || "").toString().trim();
-      const message = (fd.get("message") || "").toString().trim();
-
-      if(!email){
-        submitBtn.disabled = false;
-        addMessage("bot", `<span class="pill">INFO</span>Prosím doplňte e-mail, ať vám můžeme poslat plnou ukázku.`);
-        return;
-      }
-
-      try{
-        const payload = { name, phone, email, message, web };
-        const res = await fetch(ENDPOINT_LEAD, {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        // endpoint může vracet JSON i text
-        try{ await res.json(); } catch(_) {}
-
-        hideModal();
-        addMessage("bot", `<span class="pill">OK</span>Děkuji! Ozveme se vám s plnou ukázkou. 🙂`);
-        addMessage("bot", `<div class="small">Ještě mi řekněte: jaký typ dotazů chcete nejčastěji odbavit (cena, termíny, služby, poptávka…)?</div>`);
-      }catch(err){
-        addMessage("bot", `<span class="pill">CHYBA</span>Nepodařilo se odeslat formulář. Zkuste to prosím znovu.`);
-      }finally{
-        submitBtn.disabled = false;
-      }
-    });
-
-    /******************************************************************
-     *  INPUT UX
-     ******************************************************************/
-    function autosize(textarea){
-      textarea.style.height = "auto";
-      textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
-    }
-    ta.addEventListener("input", ()=>autosize(ta));
-
-    ta.addEventListener("keydown", (e)=>{
-      if(e.key === "Enter" && !e.shiftKey){
-        e.preventDefault();
-        sendBtn.click();
-      }
-    });
-
-    sendBtn.addEventListener("click", ()=>{
-      sendUserText(ta.value);
-    });
-
-    /******************************************************************
-     *  INIT
-     ******************************************************************/
-    intro();
-    setTimeout(()=>{
-      try{ ta.focus({ preventScroll:true }); }catch(e){ ta.focus(); }
-    }, 200);
-
-  </script>
-</body>
-</html>

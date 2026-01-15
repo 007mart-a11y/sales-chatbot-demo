@@ -7,16 +7,9 @@
   <style>
     :root{
       --bg0: #070A12;
-      --bg1: rgba(255,255,255,.06);
-      --bg2: rgba(255,255,255,.09);
       --stroke: rgba(255,255,255,.12);
-      --stroke2: rgba(0,255,255,.22);
       --txt: rgba(255,255,255,.90);
       --muted: rgba(255,255,255,.68);
-      --muted2: rgba(255,255,255,.56);
-
-      --brand: rgba(0, 230, 255, .95);
-      --brand2: rgba(0, 160, 255, .95);
 
       --shadow: 0 18px 60px rgba(0,0,0,.55);
       --radius: 18px;
@@ -30,7 +23,6 @@
     html, body{ height:100%; width:100%; margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial; background: var(--bg0); color: var(--txt); }
     a{ color: inherit; }
 
-    /* ====== EMBED FILL pro Lovable ====== */
     body.embed-mode { background: transparent; }
     #appRoot{
       height:100%;
@@ -57,7 +49,6 @@
       position: relative;
     }
 
-    /* Když jsme v iframe slotu (Lovable embed), vyplň panel celý prostor */
     body.embed-mode .panel{
       width:100%;
       height:100%;
@@ -66,7 +57,6 @@
       border: 1px solid rgba(255,255,255,.10);
     }
 
-    /* ====== HEADER ====== */
     .header{
       display:flex;
       align-items:center;
@@ -133,7 +123,6 @@
       transform: translateY(-1px);
     }
 
-    /* ====== MESSAGES ====== */
     .messages{
       flex: 1 1 auto;
       overflow:auto;
@@ -223,7 +212,6 @@
       border-color: rgba(0,255,255,.28);
     }
 
-    /* ====== TYPING DOTS ====== */
     .typing{
       display:inline-flex;
       align-items:center;
@@ -246,7 +234,6 @@
       40%{ transform: translateY(-6px); opacity: 1; }
     }
 
-    /* ====== INPUT ====== */
     .composer{
       padding: 10px 12px 12px;
       border-top: 1px solid rgba(255,255,255,.10);
@@ -293,22 +280,14 @@
       box-shadow: 0 12px 28px rgba(0,0,0,.28);
     }
     .sendBtn:hover{ transform: translateY(-1px); filter: brightness(1.05); }
-    .sendBtn:disabled{
-      opacity:.55;
-      cursor:not-allowed;
-      transform:none;
-      filter:none;
-    }
+    .sendBtn:disabled{ opacity:.55; cursor:not-allowed; transform:none; filter:none; }
 
-    /* ====== MODAL (FULL VERSION LEAD) ====== */
     .modalOverlay{
-      position:absolute;
-      inset:0;
+      position:absolute; inset:0;
       background: rgba(0,0,0,.55);
       backdrop-filter: blur(8px);
       display:none;
-      align-items:center;
-      justify-content:center;
+      align-items:center; justify-content:center;
       padding: 16px;
       z-index: 50;
     }
@@ -336,22 +315,17 @@
       border: 1px solid rgba(255,255,255,.14);
       background: rgba(255,255,255,.06);
       color: rgba(255,255,255,.85);
-      width: 34px;
-      height: 34px;
+      width: 34px; height: 34px;
       border-radius: 12px;
       cursor:pointer;
     }
-    .modalBody{
-      padding: 14px;
-    }
+    .modalBody{ padding: 14px; }
     .grid{
       display:grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
-    @media (max-width: 520px){
-      .grid{ grid-template-columns: 1fr; }
-    }
+    @media (max-width: 520px){ .grid{ grid-template-columns: 1fr; } }
     .field label{
       display:block;
       font-size: 12px;
@@ -411,17 +385,13 @@
     const ENDPOINT_LEAD  = APP_ORIGIN + "/.netlify/functions/lead";
 
     const LS_THREAD = "sales_chatbot_thread_id_v2";
-    const LS_DEMO_STATE = "sales_chatbot_demo_state_v4";
-    const LS_MSG_COUNT = "sales_chatbot_user_msg_count_v4";
-    const LS_NUDGE_DONE = "sales_chatbot_nudge_done_v4";
-
-    // ✅ NEW: Mode state (demo/sales)
-    const LS_MODE = "sales_chatbot_mode_v1"; // "demo" | "sales"
+    const LS_DEMO_STATE = "sales_chatbot_demo_state_v5";
+    const LS_MSG_COUNT = "sales_chatbot_user_msg_count_v5";
+    const LS_NUDGE_DONE = "sales_chatbot_nudge_done_v5";
 
     const params = new URLSearchParams(location.search);
     const IS_EMBED = params.get("embed") === "1";
 
-    // heuristika: doména
     function normalizeDomain(text){
       if(!text) return "";
       let t = text.trim();
@@ -432,13 +402,11 @@
       return t;
     }
 
-    // jednoduché odvození názvu firmy z domény
     function companyFromDomain(domain){
       try{
         const d = domain.replace(/^www\./i,"");
         const base = d.split(".")[0] || d;
-        const nice = base.charAt(0).toUpperCase() + base.slice(1);
-        return nice;
+        return base.charAt(0).toUpperCase() + base.slice(1);
       }catch(e){ return "Vaše firma"; }
     }
 
@@ -467,38 +435,6 @@
         .replaceAll("'","&#039;");
     }
 
-    function scrollToBottom(){
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    function addMessage(role, html){
-      const row = el("div", { class: "msgRow " + (role === "user" ? "user" : "bot") });
-      const bubble = el("div", { class: "bubble", html });
-      row.appendChild(bubble);
-      messages.appendChild(row);
-      scrollToBottom();
-      return row;
-    }
-
-    function addTyping(){
-      const row = el("div", { class: "msgRow bot" });
-      const bubble = el("div", { class: "typing", "aria-label": "Generuje se odpověď" }, [
-        el("span", { class:"typingDot" }),
-        el("span", { class:"typingDot" }),
-        el("span", { class:"typingDot" }),
-      ]);
-      row.appendChild(bubble);
-      row.dataset.typing = "1";
-      messages.appendChild(row);
-      scrollToBottom();
-      return row;
-    }
-
-    function removeTyping(){
-      const t = messages.querySelector('[data-typing="1"]');
-      if(t) t.remove();
-    }
-
     function setUserCount(n){ localStorage.setItem(LS_MSG_COUNT, String(n)); }
     function getUserCount(){ return parseInt(localStorage.getItem(LS_MSG_COUNT) || "0", 10) || 0; }
 
@@ -516,14 +452,6 @@
     function isNudgeDone(){ return localStorage.getItem(LS_NUDGE_DONE) === "1"; }
     function resetNudge(){ localStorage.removeItem(LS_NUDGE_DONE); }
 
-    // ✅ NEW: Mode helpers
-    function setMode(mode){ localStorage.setItem(LS_MODE, mode); }
-    function getMode(){ return localStorage.getItem(LS_MODE) || "demo"; }
-    function resetMode(){ localStorage.removeItem(LS_MODE); }
-
-    /******************************************************************
-     *  UI BUILD
-     ******************************************************************/
     if(IS_EMBED) document.body.classList.add("embed-mode");
 
     const root = document.getElementById("appRoot");
@@ -576,7 +504,7 @@
     composer.appendChild(inputWrap);
     composer.appendChild(sendBtn);
 
-    // Modal
+    // ===== Modal =====
     const modalOverlay = el("div", { class:"modalOverlay", id:"modalOverlay" });
     const modal = el("div", { class:"modal" });
     const modalHead = el("div", { class:"modalHead" });
@@ -596,15 +524,10 @@
       ]);
     }
 
-    const fName  = field("Jméno", "text", "name", "Jan Novák");
-    const fEmail = field("E-mail", "email", "email", "jan@firma.cz");
-    const fPhone = field("Telefon", "tel", "phone", "777 123 456");
-    const fWeb   = field("Web / doména", "text", "web", "www.firma.cz");
-
-    grid.appendChild(fName);
-    grid.appendChild(fEmail);
-    grid.appendChild(fPhone);
-    grid.appendChild(fWeb);
+    grid.appendChild(field("Jméno", "text", "name", "Jan Novák"));
+    grid.appendChild(field("E-mail", "email", "email", "jan@firma.cz"));
+    grid.appendChild(field("Telefon", "tel", "phone", "777 123 456"));
+    grid.appendChild(field("Web / doména", "text", "web", "www.firma.cz"));
 
     const fMsg = el("div", { class:"field" }, [
       el("label", {}, ["Co by měl chatbot umět? (stručně)"]),
@@ -631,8 +554,8 @@
     modal.appendChild(modalBody);
     modal.appendChild(actions);
     modalOverlay.appendChild(modal);
-    panel.appendChild(modalOverlay);
 
+    panel.appendChild(modalOverlay);
     panel.appendChild(header);
     panel.appendChild(messages);
     panel.appendChild(composer);
@@ -645,6 +568,36 @@
     }
     function hideModal(){ modalOverlay.classList.remove("show"); }
 
+    function scrollToBottom(){ messages.scrollTop = messages.scrollHeight; }
+
+    function addMessage(role, html){
+      const row = el("div", { class: "msgRow " + (role === "user" ? "user" : "bot") });
+      const bubble = el("div", { class: "bubble", html });
+      row.appendChild(bubble);
+      messages.appendChild(row);
+      scrollToBottom();
+      return row;
+    }
+
+    function addTyping(){
+      const row = el("div", { class: "msgRow bot" });
+      const bubble = el("div", { class: "typing", "aria-label": "Generuje se odpověď" }, [
+        el("span", { class:"typingDot" }),
+        el("span", { class:"typingDot" }),
+        el("span", { class:"typingDot" }),
+      ]);
+      row.appendChild(bubble);
+      row.dataset.typing = "1";
+      messages.appendChild(row);
+      scrollToBottom();
+      return row;
+    }
+    function removeTyping(){
+      const t = messages.querySelector('[data-typing="1"]');
+      if(t) t.remove();
+    }
+    function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
     /******************************************************************
      *  DEMO COPY + FLOW
      ******************************************************************/
@@ -652,59 +605,46 @@
       addMessage("bot", `
         <div class="kicker"><span class="pill">DEMO</span>Rychlá ukázka chatbota pro váš web</div>
         <div class="small">
-          Zadejte <b>doménu</b> (např. <b>dachmantechnik.cz</b>) a během chvilky připravím <b>DEMO ukázku</b>.
+          Zadejte <b>doménu</b> (např. <b>dachmantechnik.cz</b>) a během chvilky připravím DEMO.
           <br><br>
-          <b>Upozornění:</b> V této DEMO verzi je načtena pouze <b>homepage</b> vašeho webu.
-          Odpovědi jsou orientační a slouží k ukázce chování chatbota.
-          <br><br>
-          V <b>plné verzi</b> chatbot pracuje s celým webem, odpovídá přesněji, sbírá poptávky a navádí návštěvníky ke správné službě nebo kontaktu.
+          <b>Poznámka:</b> DEMO používá jen <b>homepage</b> – odpovědi jsou orientační, ale ukazují styl komunikace.
         </div>
         <div class="divider"></div>
-        <div class="small"><b>Zkuste to:</b> napište doménu nebo rovnou položte dotaz (cena, služby, termíny, kontakt).</div>
+        <div class="small"><b>Zkuste:</b> cena / nasazení / objednání / kontakt.</div>
       `);
 
       const state = getDemoState();
       if(state?.domain){
         addMessage("bot", `
-          <span class="pill">DEMO</span>Posledně zadaný web: <b>${escapeHtml(state.domain)}</b> (firma: <b>${escapeHtml(state.company)}</b>).
-          <div class="small" style="margin-top:6px">Načten je pouze obsah <b>homepage</b>. Odpovědi jsou orientační.</div>
+          <span class="pill">DEMO</span>Aktivní web: <b>${escapeHtml(state.domain)}</b> (firma: <b>${escapeHtml(state.company)}</b>).
+          <div class="small" style="margin-top:6px">Načtena pouze homepage.</div>
         `);
         quickButtons(state);
       }
     }
 
+    // ✅ Blok, který chceš případně vyměňovat "od function quickButtons"
     function quickButtons(state){
+      const company = escapeHtml(state.company || "firma");
+      const domain  = escapeHtml(state.domain || "");
+
       addMessage("bot", `
         <div class="kicker">Chcete si to hned vyzkoušet?</div>
-        <div class="small">
-          Klikněte na jednu z ukázkových otázek, nebo napište vlastní dotaz.
-          <br>
-          <span style="opacity:.8">DEMO pracuje pouze s obsahem homepage.</span>
+        <div class="small">Klikněte na otázku nebo napište vlastní dotaz.</div>
+        <div class="chips" data-chips="1">
+          <button class="chip" type="button" data-q="Co je hlavní nabídka / služby na webu ${domain}?">Co víš o této firmě?</button>
+          <button class="chip" type="button" data-q="Jak si mohu objednat služby na webu ${domain}?">Jak si mohu službu objednat?</button>
+          <button class="chip" type="button" data-q="Jaké jsou orientační ceny a jak rychle lze nasadit řešení?">Kolik to stojí a jak rychle to nasadíte?</button>
+          <button class="chip" type="button" data-q="Kde najdu kontakt / objednání / formulář na webu ${domain}?">Kde jsou kontakty?</button>
         </div>
-
-        <div class="chips">
-          <button class="chip"
-            data-q="Co víš o firmě ${escapeHtml(state.company)} (${escapeHtml(state.domain)})? Vím, že jde o DEMO a mám k dispozici jen homepage.">
-            Co víš o této firmě?
-          </button>
-
-          <button class="chip"
-            data-q="Jak by si mohl zákazník objednat služby firmy ${escapeHtml(state.company)} na webu ${escapeHtml(state.domain)}? Odpovídej jen z informací, které bývají na homepage.">
-            Jak si mohu službu objednat?
-          </button>
-
-          <button class="chip"
-            data-q="Kolik to může orientačně stát a jak rychle lze řešení nasadit pro web ${escapeHtml(state.domain)}? Pokud přesná cena není na homepage, uveď to.">
-            Kolik to stojí a jak rychle to nasadíte?
-          </button>
-        </div>
+        <div class="small" style="margin-top:8px">DEMO pozn.: odpovědi vychází pouze z homepage.</div>
       `);
 
       const last = messages.lastElementChild;
-      const btns = last.querySelectorAll(".chip");
-      btns.forEach(btn => {
-        btn.addEventListener("click", () => {
-          const q = btn.getAttribute("data-q") || btn.textContent.trim();
+      const btns = last.querySelectorAll('button[data-q]');
+      btns.forEach(b=>{
+        b.addEventListener("click", ()=>{
+          const q = b.getAttribute("data-q") || b.textContent.trim();
           sendUserText(q);
         });
       });
@@ -714,31 +654,22 @@
       const company = companyFromDomain(domain);
       const state = { domain, company };
 
-      // ✅ reset kontextu pro novou doménu
+      // reset kontextu pro novou doménu
       resetThread();
       setUserCount(0);
       resetNudge();
-
-      // ✅ vždy zpět do DEMO módu při zadání nové domény
-      setMode("demo");
-
       setDemoState(state);
 
       addMessage("bot", `
-        <span class="pill">DEMO</span>Hotovo ✅ Ukázka je připravena pro firmu <b>${escapeHtml(company)}</b> (<b>${escapeHtml(domain)}</b>).
-        <div class="small" style="margin-top:6px">
-          V této ukázce je použit pouze obsah <b>homepage</b>. Odpovědi jsou orientační.
-        </div>
-        <div class="small" style="margin-top:8px">
-          Teď se zeptejte jako zákazník: <b>cena</b>, <b>služby</b>, <b>termín</b>, <b>kontakt</b>… (nebo klikněte na připravené otázky).
-        </div>
+        <span class="pill">DEMO</span>Hotovo ✅ Připraveno pro <b>${escapeHtml(company)}</b> (<b>${escapeHtml(domain)}</b>).
+        <div class="small" style="margin-top:6px">V ukázce pracuji pouze s homepage.</div>
+        <div class="small" style="margin-top:8px">Zkuste: <b>cena</b>, <b>nasazení</b>, <b>objednání</b>, <b>kontakt</b>.</div>
       `);
 
       quickButtons(state);
     }
-
-    /******************************************************************
-     *  SALES NUDGE
+        /******************************************************************
+     *  SALES NUDGE (jen CTA – lead řeší modal)
      ******************************************************************/
     function maybeNudge(){
       const count = getUserCount();
@@ -750,28 +681,21 @@
       addMessage("bot", `
         <div class="kicker">Chcete vidět plnou verzi na vašem webu?</div>
         <div class="small">
-          V plné verzi chatbot odpovídá z celého webu (ne jen z homepage), sbírá poptávky a umí návštěvníky směřovat na správné služby.
+          Plná verze pracuje s celým webem (ne jen homepage), umí přesnější odpovědi a sběr poptávek.
         </div>
         <div class="chips">
-          <button class="chip" data-nudge="yes">Ano, ukázat plnou verzi</button>
-          <button class="chip" data-nudge="no">Ne, pokračovat v DEMO</button>
+          <button class="chip" type="button" data-nudge="yes">Ano, ukázat plnou verzi</button>
+          <button class="chip" type="button" data-nudge="no">Ne, pokračovat v DEMO</button>
         </div>
       `);
 
       const last = messages.lastElementChild;
-
-      // ✅ YES => přepnout do SALES + reset threadu (nový kontext)
       last.querySelector('[data-nudge="yes"]').addEventListener("click", ()=>{
         const st = getDemoState();
-
-        setMode("sales");
-        resetThread();
-
         showModal({ web: st?.domain || "" });
       });
-
       last.querySelector('[data-nudge="no"]').addEventListener("click", ()=>{
-        addMessage("bot", `<span class="pill">DEMO</span>Jasně — klidně pokračujte otázkou. 🙂`);
+        addMessage("bot", `<span class="pill">DEMO</span>Jasně — pokračujte otázkou. 🙂`);
       });
     }
 
@@ -780,7 +704,6 @@
      ******************************************************************/
     async function callAssistant(userText){
       const thread_id = getThreadId() || undefined;
-
       const payload = { message: userText };
       if(thread_id) payload.thread_id = thread_id;
 
@@ -800,7 +723,107 @@
       if(data.thread_id) setThreadId(data.thread_id);
       return { ok:true, answer: data.answer || "OK" };
     }
-        /******************************************************************
+
+    /******************************************************************
+     *  “CHYTRÉ” FRONTEND ODPOVĚDI (aby to působilo přesvědčivě)
+     ******************************************************************/
+    function matchIntent(t){
+      const s = (t || "").toLowerCase();
+
+      if(/(kolik|cena|ceník|stojí|tarif|platba)/.test(s)) return "price";
+      if(/(jak.*koup|objedn|pořídit|nasadit|zprovoznit|implement)/.test(s)) return "buy";
+      if(/(co umí|funkce|plná verze|full|možnosti)/.test(s)) return "full";
+      if(/(jak rychle|termín|kdy|za jak dlouho|rychlost)/.test(s)) return "timeline";
+      if(/(kontakt|telefon|email|e-mail|kde.*najd)/.test(s)) return "contact";
+
+      return "";
+    }
+
+    function smartAnswer(intent){
+      const st = getDemoState();
+      const domain = st?.domain ? escapeHtml(st.domain) : "";
+      const company = st?.company ? escapeHtml(st.company) : "vaši firmu";
+
+      // krátké, konkrétní, bez slibů – a zároveň “prodejní” feeling
+      if(intent === "price"){
+        return `
+          <div class="kicker"><span class="pill">INFO</span>Orientační cena</div>
+          <div class="small">
+            Cena se obvykle odvíjí od: <b>velikosti webu</b>, počtu témat (FAQ, služby, ceník), a zda má chatbot jen odpovídat nebo i <b>sbírat poptávky</b>.
+            V DEMO (jen homepage) to nejde přesně vyčíst. Pokud chcete, pošlu vám plnou ukázku na ${company} – vyplňte kontakt.
+          </div>
+          <div class="chips" style="margin-top:10px">
+            <button class="chip" type="button" data-openmodal="1">Ukázat plnou verzi</button>
+          </div>
+        `;
+      }
+
+      if(intent === "timeline"){
+        return `
+          <div class="kicker"><span class="pill">INFO</span>Jak rychle nasazení</div>
+          <div class="small">
+            DEMO je okamžité. Plná verze záleží na tom, jestli jen napojíme web (FAQ/stránky), nebo nastavíme i <b>sběr leadů</b> a scénáře.
+            Nejrychlejší je poslat doménu + kontakt – připravím ukázku pro ${company}.
+          </div>
+          <div class="chips" style="margin-top:10px">
+            <button class="chip" type="button" data-openmodal="1">Ukázat plnou verzi</button>
+          </div>
+        `;
+      }
+
+      if(intent === "full"){
+        return `
+          <div class="kicker"><span class="pill">INFO</span>Co umí plná verze</div>
+          <div class="small">
+            Plná verze umí: odpovědi z <b>celého webu</b> (ne jen homepage), chytré navádění na správnou službu,
+            a volitelně i <b>sběr poptávky</b> (jméno/telefon/e-mail) bez otravného dotazníku.
+            V DEMO ukazuji hlavně styl komunikace.
+          </div>
+          <div class="chips" style="margin-top:10px">
+            <button class="chip" type="button" data-openmodal="1">Ukázat plnou verzi</button>
+          </div>
+        `;
+      }
+
+      if(intent === "buy"){
+        return `
+          <div class="kicker"><span class="pill">INFO</span>Jak koupit / objednat</div>
+          <div class="small">
+            Nejrychlejší je poslat kontakt a doménu – připravím ukázku chatbota přímo pro ${company}.
+            V DEMO (homepage) neumím spolehlivě najít váš konkrétní objednávkový postup na ${domain || "webu"}.
+          </div>
+          <div class="chips" style="margin-top:10px">
+            <button class="chip" type="button" data-openmodal="1">Ukázat plnou verzi</button>
+          </div>
+        `;
+      }
+
+      if(intent === "contact"){
+        return `
+          <div class="kicker"><span class="pill">TIP</span>Kde obvykle bývá kontakt</div>
+          <div class="small">
+            Na webech bývá kontakt v menu jako <b>Kontakt</b>, případně v patičce. V DEMO mám jen homepage, takže když tam kontakt není vidět,
+            nejspíš je na samostatné stránce.
+          </div>
+        `;
+      }
+
+      return "";
+    }
+
+    function wireModalButtonIfAny(){
+      const last = messages.lastElementChild;
+      if(!last) return;
+      const btn = last.querySelector('[data-openmodal="1"]');
+      if(btn){
+        btn.addEventListener("click", ()=>{
+          const st = getDemoState();
+          showModal({ web: st?.domain || "" });
+        });
+      }
+    }
+
+    /******************************************************************
      *  SEND FLOW
      ******************************************************************/
     async function sendUserText(text){
@@ -815,7 +838,7 @@
         autosize(ta);
 
         addTyping();
-        await wait(450);
+        await wait(350);
         removeTyping();
 
         demoReady(maybeDomain);
@@ -827,45 +850,33 @@
       ta.value = "";
       autosize(ta);
 
-      // count (uživatelský dotaz) – počítáme jen v DEMO
-      const modeNow = getMode();
-      if(modeNow === "demo"){
-        const cnt = getUserCount() + 1;
-        setUserCount(cnt);
+      const cnt = getUserCount() + 1;
+      setUserCount(cnt);
+
+      // 1) nejdřív zkus “chytrou” lokální odpověď
+      const intent = matchIntent(t);
+      if(intent){
+        addTyping();
+        await wait(250);
+        removeTyping();
+
+        addMessage("bot", smartAnswer(intent));
+        wireModalButtonIfAny();
+        maybeNudge();
+        return;
       }
 
-      // DEMO context → aby AI vždy věděla, pro jaký web to je + že je jen homepage
+      // 2) jinak teprve voláme asistenta
       const st = getDemoState();
-      const demoContext = st?.domain ? `
-[DEMO MODE]
-Web: ${st.domain}
-Firma: ${st.company}
-Načtený obsah: pouze homepage webu
-Pokyny:
-- Odpovídej jako chatbot tohoto webu.
-- Pokud informace není na homepage, řekni, že v DEMO ukázce nemusí být dostupná (protože je načtena jen homepage).
-- Doporuč, kde by ji návštěvník našel (např. Kontakt, O nás, Služby, Ceník).
-- Neptej se opakovaně na obor podnikání (žádný dotazník).
-- Polož maximálně 1 doplňující otázku, jen pokud to opravdu pomůže.
-` : `
-[DEMO MODE]
-Načtený obsah: pouze homepage (zatím nebyla zadána doména).
-Pokyny:
-- Vyzvi uživatele, ať zadá doménu webu (např. dachmantechnik.cz), aby šlo připravit demo.
-`;
-
-      // ✅ MODE header přidaný do zprávy
-      const modeHeader = (modeNow === "sales") ? "[MODE: SALES]\n" : "[MODE: DEMO]\n";
-      const payloadText =
-        modeHeader +
-        t +
-        (modeNow === "demo" ? ("\n\n" + demoContext) : "");
+      const ctxLine = st?.domain
+        ? `DEMO Kontext: web=${st.domain}, firma=${st.company}, zdroj=pouze homepage.`
+        : `DEMO Kontext: doména zatím nezadaná (požádej uživatele o doménu).`;
 
       addTyping();
       sendBtn.disabled = true;
 
       try{
-        const out = await callAssistant(payloadText);
+        const out = await callAssistant(`${t}\n\n${ctxLine}`);
         removeTyping();
         addMessage("bot", out.answer);
       }catch(e){
@@ -874,23 +885,15 @@ Pokyny:
       }finally{
         sendBtn.disabled = false;
         scrollToBottom();
-
-        // ✅ nudge jen v DEMO
-        if(getMode() === "demo") maybeNudge();
+        maybeNudge();
       }
     }
-
-    function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
     /******************************************************************
      *  FORM SUBMIT (LEAD)
      ******************************************************************/
     form.addEventListener("submit", async (e)=>{
       e.preventDefault();
-
-      // ✅ při odesílání leadu držíme SALES mód
-      setMode("sales");
-
       const submitBtn = document.getElementById("leadSubmit");
       submitBtn.disabled = true;
 
@@ -914,12 +917,10 @@ Pokyny:
           headers:{ "Content-Type":"application/json" },
           body: JSON.stringify(payload)
         });
-
         try{ await res.json(); } catch(_) {}
 
         hideModal();
-        addMessage("bot", `<span class="pill">OK</span>Děkuji, mám vše: ${escapeHtml(name || "—")}, ${escapeHtml(phone || "—")}, ${escapeHtml(email)}.`);
-
+        addMessage("bot", `<span class="pill">OK</span>Děkuji, mám vše. ✅`);
       }catch(err){
         addMessage("bot", `<span class="pill">CHYBA</span>Nepodařilo se odeslat formulář. Zkuste to prosím znovu.`);
       }finally{
@@ -935,26 +936,18 @@ Pokyny:
       textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
     }
     ta.addEventListener("input", ()=>autosize(ta));
-
     ta.addEventListener("keydown", (e)=>{
       if(e.key === "Enter" && !e.shiftKey){
         e.preventDefault();
         sendBtn.click();
       }
     });
-
-    sendBtn.addEventListener("click", ()=>{
-      sendUserText(ta.value);
-    });
+    sendBtn.addEventListener("click", ()=>{ sendUserText(ta.value); });
 
     /******************************************************************
      *  INIT
      ******************************************************************/
-    // ✅ default mód je DEMO (pokud ještě není nastaven)
-    if(!localStorage.getItem(LS_MODE)) setMode("demo");
-
     intro();
-
     setTimeout(()=>{
       try{ ta.focus({ preventScroll:true }); }catch(e){ ta.focus(); }
     }, 200);
